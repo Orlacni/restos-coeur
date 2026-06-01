@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion de la communication - Restos du Cœur</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .communication-container {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .messages-panel {
+            flex: 2;
+            min-width: 300px;
+        }
+        
+        .info-panel {
+            width: 300px;
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 1.2rem;
+            box-shadow: var(--shadow-sm);
+            height: fit-content;
+        }
+        
+        .info-panel h3 {
+            color: var(--restos-rose);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            border-bottom: 2px solid var(--restos-rose);
+            padding-bottom: 0.5rem;
+        }
+        
+        .info-item {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .info-item .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        
+        .info-item .value {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .stats-communication {
+            background: linear-gradient(135deg, var(--restos-rose) 0%, var(--restos-rose-fonce) 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .search-bar {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .search-input {
+            flex: 2;
+            min-width: 200px;
+        }
+        
+        .search-input input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .filters button {
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .filters button.active {
+            background: var(--restos-rose);
+            color: white;
+            border-color: var(--restos-rose);
+        }
+        
+        .message-card {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--restos-rose);
+            transition: all 0.2s ease;
+        }
+        
+        .message-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateX(3px);
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .message-title {
+            font-weight: 700;
+            color: var(--restos-rose);
+            font-size: 1rem;
+        }
+        
+        .message-type {
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        
+        .type-info {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .type-distribution {
+            background: #28a745;
+            color: white;
+        }
+        
+        .message-date {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+        
+        .message-content {
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+            line-height: 1.4;
+        }
+        
+        .message-image {
+            margin-top: 0.75rem;
+        }
+        
+        .message-image img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        
+        .message-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+        
+        .btn-edit {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            border-radius: 16px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .communication-container {
+                flex-direction: column;
+            }
+            .info-panel {
+                width: 100%;
+            }
+            .search-bar {
+                flex-direction: column;
+            }
+            .stats-communication {
+                flex-direction: column;
+                text-align: center;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .btn-annuler {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-annuler:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+        
+        .btn-ajouter {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-ajouter:hover {
+            background: var(--restos-rose-fonce);
+            transform: translateY(-1px);
+        }
+        
+        .btn-action {
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/images/logo.png" alt="Restos du Cœur" onerror="this.style.display='none'">
+                <h2>Restos du Cœur</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="nav-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="profile-menu">
+                    <div class="profile-avatar" onclick="toggleProfileMenu()">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="dropdown-item" id="userName">Chargement...</div>
+                        <div class="dropdown-item" id="userEmail" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profil.html" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Mon profil
+                        </a>
+                        <div class="dropdown-item">
+                            <i class="fas fa-moon"></i> Mode sombre
+                            <label class="switch">
+                                <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Déconnexion
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>📢 Gestion de la communication</h2>
+                
+                <div class="communication-container">
+                    <!-- Panneau principal des messages -->
+                    <div class="messages-panel">
+                        <div class="stats-communication">
+                            <div>
+                                <span><strong>📋 Messages</strong></span>
+                                <span id="messagesCount">0 message(s)</span>
+                            </div>
+                            <div class="action-buttons">
+                                <button onclick="showAddMessageModal()" class="btn-action btn-ajouter">
+                                    <i class="fas fa-plus"></i> Nouveau message
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="search-bar">
+                            <div class="search-input">
+                                <input type="text" id="searchInput" placeholder="🔍 Rechercher par titre..." oninput="filterMessages()">
+                            </div>
+                            <div class="filters">
+                                <button class="filter-btn active" data-type="all" onclick="filterByType('all')">Tous</button>
+                                <button class="filter-btn" data-type="info" onclick="filterByType('info')">ℹ️ Informations</button>
+                                <button class="filter-btn" data-type="distribution" onclick="filterByType('distribution')">📅 Distributions</button>
+                            </div>
+                        </div>
+                        
+                        <div id="messages-list">
+                            <div class="loading">Chargement...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Panneau d'information (aide) -->
+                    <div class="info-panel">
+                        <h3><i class="fas fa-info-circle"></i> À savoir</h3>
+                        <div class="info-item">
+                            <div class="label">📢 Messages d'information</div>
+                            <div class="value">Apparaissent sur la page d'accueil et la page informations</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="label">📅 Dates de distribution</div>
+                            <div class="value">Apparaissent dans la section "Prochaines distributions"</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="label">🖼️ Images</div>
+                            <div class="value">Vous pouvez ajouter des images à vos messages</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="label">👥 Visibilité</div>
+                            <div class="value">Les messages sont visibles par tous (bénévoles et bénéficiaires)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal ajout/modification message -->
+    <div id="messageModal" class="modal">
+        <div class="modal-content" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
+            <h2 id="modalTitle">Ajouter un message</h2>
+            <form id="messageForm" enctype="multipart/form-data">
+                <input type="hidden" id="messageId">
+                
+                <div class="form-group">
+                    <label>Titre *</label>
+                    <input type="text" id="titre" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Type *</label>
+                    <select id="type" class="form-control" required>
+                        <option value="info">ℹ️ Information générale</option>
+                        <option value="distribution">📅 Date de distribution</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="dateGroup" style="display: none;">
+                    <label>Date de distribution *</label>
+                    <input type="date" id="date_distribution" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label>Contenu *</label>
+                    <textarea id="contenu" class="form-control" rows="5" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Image (optionnel)</label>
+                    <input type="file" id="image" class="form-control" accept="image/*">
+                </div>
+                
+                <div id="currentImage" style="margin-top: 10px;"></div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
+                    <button type="button" onclick="closeModal()" class="btn-annuler">Annuler</button>
+                    <button type="submit" class="btn-ajouter">💾 Publier</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="progressModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h2>Chargement...</h2>
+            <div id="progressStatus">Traitement en cours...</div>
+            <div id="progressResult"></div>
+        </div>
+    </div>
+    
+    <script src="/js/layout.js"></script>
+    <script>
+        var messages = [];
+        var currentFilter = 'all';
+        var searchTerm = '';
+        
+        async function loadMessages() {
+            try {
+                var response = await fetch('/api/messages');
+                messages = await response.json();
+                displayMessages();
+                document.getElementById('messagesCount').innerHTML = messages.length + ' message(s)';
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        function filterMessages() {
+            searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            displayMessages();
+        }
+        
+        function filterByType(type) {
+            currentFilter = type;
+            // Mettre à jour l'état actif des boutons
+            var btns = document.querySelectorAll('.filter-btn');
+            for (var i = 0; i < btns.length; i++) {
+                btns[i].classList.remove('active');
+                if (btns[i].getAttribute('data-type') === type) {
+                    btns[i].classList.add('active');
+                }
+            }
+            displayMessages();
+        }
+        
+        function displayMessages() {
+            var container = document.getElementById('messages-list');
+            
+            var filtered = messages.filter(function(msg) {
+                if (currentFilter !== 'all' && msg.type !== currentFilter) return false;
+                if (searchTerm && !msg.titre.toLowerCase().includes(searchTerm)) return false;
+                return true;
+            });
+            
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state">📭 Aucun message trouvé</div>';
+                return;
+            }
+            
+            var html = '';
+            for (var i = 0; i < filtered.length; i++) {
+                var msg = filtered[i];
+                var typeClass = msg.type === 'info' ? 'type-info' : 'type-distribution';
+                var typeLabel = msg.type === 'info' ? 'ℹ️ Information' : '📅 Distribution';
+                var dateStr = new Date(msg.created_at).toLocaleDateString('fr-FR');
+                
+                html += `
+                    <div class="message-card">
+                        <div class="message-header">
+                            <div>
+                                <span class="message-title">${escapeHtml(msg.titre)}</span>
+                                <span class="message-type ${typeClass}">${typeLabel}</span>
+                            </div>
+                            <div class="message-date">📅 ${dateStr}</div>
+                        </div>
+                        <div class="message-content">${escapeHtml(msg.contenu).substring(0, 200)}${msg.contenu.length > 200 ? '...' : ''}</div>
+                        ${msg.image_url ? `<div class="message-image"><img src="${msg.image_url}" alt="Image" onclick="window.open(this.src)"></div>` : ''}
+                        <div class="message-actions">
+                            <button onclick="editMessage(${msg.id})" class="btn-edit">✏️ Modifier</button>
+                            <button onclick="deleteMessage(${msg.id})" class="btn-delete">🗑️ Supprimer</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        document.getElementById('type').addEventListener('change', function() {
+            var dateGroup = document.getElementById('dateGroup');
+            dateGroup.style.display = this.value === 'distribution' ? 'block' : 'none';
+            if (this.value === 'distribution') {
+                document.getElementById('date_distribution').required = true;
+            } else {
+                document.getElementById('date_distribution').required = false;
+            }
+        });
+        
+        function showAddMessageModal() {
+            document.getElementById('modalTitle').textContent = 'Ajouter un message';
+            document.getElementById('messageForm').reset();
+            document.getElementById('messageId').value = '';
+            document.getElementById('dateGroup').style.display = 'none';
+            document.getElementById('currentImage').innerHTML = '';
+            document.getElementById('messageModal').style.display = 'block';
+        }
+        
+        async function editMessage(id) {
+            var msg = null;
+            for (var i = 0; i < messages.length; i++) {
+                if (messages[i].id === id) {
+                    msg = messages[i];
+                    break;
+                }
+            }
+            if (!msg) return;
+            
+            document.getElementById('modalTitle').textContent = 'Modifier le message';
+            document.getElementById('messageId').value = msg.id;
+            document.getElementById('titre').value = msg.titre;
+            document.getElementById('type').value = msg.type;
+            document.getElementById('contenu').value = msg.contenu;
+            
+            if (msg.type === 'distribution') {
+                document.getElementById('dateGroup').style.display = 'block';
+                document.getElementById('date_distribution').value = msg.date_distribution;
+            } else {
+                document.getElementById('dateGroup').style.display = 'none';
+            }
+            
+            if (msg.image_url) {
+                document.getElementById('currentImage').innerHTML = `
+                    <div class="form-group">
+                        <label>Image actuelle :</label>
+                        <img src="${msg.image_url}" style="max-height: 100px; border-radius: 8px; display: block; margin-top: 5px;">
+                        <input type="hidden" id="existingImage" value="${msg.image_url}">
+                    </div>
+                `;
+            } else {
+                document.getElementById('currentImage').innerHTML = '';
+            }
+            
+            document.getElementById('messageModal').style.display = 'block';
+        }
+        
+        async function deleteMessage(id) {
+            if (confirm('Supprimer définitivement ce message ?')) {
+                var response = await fetch('/api/admin/messages/' + id, { method: 'DELETE' });
+                if (response.ok) {
+                    loadMessages();
+                } else {
+                    alert('Erreur lors de la suppression');
+                }
+            }
+        }
+        
+        document.getElementById('messageForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            var formData = new FormData();
+            formData.append('titre', document.getElementById('titre').value);
+            formData.append('contenu', document.getElementById('contenu').value);
+            formData.append('type', document.getElementById('type').value);
+            formData.append('date_distribution', document.getElementById('date_distribution').value);
+            
+            var imageFile = document.getElementById('image').files[0];
+            if (imageFile) {
+                formData.append('image', imageFile);
+            } else if (document.getElementById('existingImage')) {
+                formData.append('existing_image', document.getElementById('existingImage').value);
+            }
+            
+            var id = document.getElementById('messageId').value;
+            var url = id ? '/api/admin/messages/' + id : '/api/admin/messages';
+            var method = id ? 'PUT' : 'POST';
+            
+            var progressModal = document.getElementById('progressModal');
+            var progressStatus = document.getElementById('progressStatus');
+            progressModal.style.display = 'block';
+            progressStatus.innerText = 'Enregistrement en cours...';
+            
+            try {
+                var response = await fetch(url, { method: method, body: formData });
+                var result = await response.json();
+                
+                progressModal.style.display = 'none';
+                
+                if (response.ok) {
+                    closeModal();
+                    loadMessages();
+                } else {
+                    alert('Erreur: ' + (result.error || 'Erreur lors de l\'enregistrement'));
+                }
+            } catch (error) {
+                progressModal.style.display = 'none';
+                alert('Erreur lors de l\'enregistrement');
+            }
+        });
+        
+        function closeModal() {
+            document.getElementById('messageModal').style.display = 'none';
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        loadMessages();
+    </script>
+</body>
+</html>

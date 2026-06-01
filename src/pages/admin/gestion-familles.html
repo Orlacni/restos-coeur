@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des familles - Restos du Cœur</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .familles-layout {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .campagnes-panel {
+            width: 280px;
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 1rem;
+            box-shadow: var(--shadow-sm);
+            height: fit-content;
+        }
+        
+        .campagnes-panel h3 {
+            color: var(--restos-rose);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            border-bottom: 2px solid var(--restos-rose);
+            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .campagne-annee {
+            margin-bottom: 0.5rem;
+        }
+        
+        .campagne-annee-header {
+            padding: 0.6rem;
+            background: var(--restos-rose);
+            color: white;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .campagne-annee-header:hover {
+            background: var(--restos-rose-fonce);
+        }
+        
+        .campagne-saisons {
+            list-style: none;
+            padding-left: 1rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .campagne-saisons.open {
+            display: block;
+        }
+        
+        .campagne-saisons li {
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.25rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .campagne-saisons li:hover {
+            background: var(--restos-rose);
+            color: white;
+        }
+        
+        .campagne-saisons li.active {
+            background: var(--restos-rose);
+            color: white;
+        }
+        
+        .btn-nouvelle-campagne {
+            width: 100%;
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.6rem;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .familles-panel {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .stats-campagne {
+            background: linear-gradient(135deg, var(--restos-rose) 0%, var(--restos-rose-fonce) 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .search-bar {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .search-input {
+            flex: 2;
+            min-width: 200px;
+        }
+        
+        .search-input input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        
+        .search-input input:focus {
+            outline: none;
+            border-color: var(--restos-rose);
+        }
+        
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .filters button {
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .filters button.active {
+            background: var(--restos-rose);
+            color: white;
+            border-color: var(--restos-rose);
+        }
+        
+        .famille-card {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--restos-rose);
+            transition: all 0.2s ease;
+        }
+        
+        .famille-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateX(3px);
+        }
+        
+        .famille-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 0.8rem;
+        }
+        
+        .famille-infos {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+        }
+        
+        .famille-nom {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--restos-rose);
+        }
+        
+        .famille-carte {
+            background: var(--bg-tertiary);
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+        
+        .famille-points {
+            background: var(--restos-rose);
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        
+        .famille-dotation {
+            padding: 0.2rem 0.6rem;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        
+        .dotation-normale {
+            background: #28a745;
+            color: white;
+        }
+        
+        .dotation-minoree {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .famille-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .famille-actions button {
+            padding: 0.3rem 0.8rem;
+            font-size: 0.8rem;
+        }
+        
+        .points-adultes {
+            background: #E8F5E9;
+            border-radius: 12px;
+            padding: 0.6rem;
+            margin-top: 0.6rem;
+        }
+        
+        .points-enfants {
+            background: #FFF3E0;
+            border-radius: 12px;
+            padding: 0.6rem;
+            margin-top: 0.6rem;
+        }
+        
+        .points-detail {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            justify-content: space-around;
+        }
+        
+        .point-categorie {
+            text-align: center;
+            min-width: 70px;
+        }
+        
+        .point-categorie .label {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+        
+        .point-categorie .value {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--restos-rose);
+        }
+        
+        .titre-section {
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+            color: var(--text-secondary);
+        }
+        
+        .badge-age {
+            display: inline-block;
+            background: var(--bg-tertiary);
+            color: var(--restos-rose);
+            padding: 0.15rem 0.4rem;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            margin: 0.15rem;
+        }
+        
+        .enfants-list {
+            margin-top: 0.6rem;
+            padding-top: 0.6rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        @media (max-width: 768px) {
+            .familles-layout {
+                flex-direction: column;
+            }
+            .campagnes-panel {
+                width: 100%;
+            }
+            .search-bar {
+                flex-direction: column;
+            }
+            .filters {
+                justify-content: center;
+            }
+            .stats-campagne {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            border-radius: 16px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        body.dark-mode .points-adultes {
+            background: #1a3a1a;
+        }
+        
+        body.dark-mode .points-enfants {
+            background: #3a2a1a;
+        }
+        
+        .stats-pald {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .stat-pald-item {
+            text-align: center;
+            min-width: 45px;
+        }
+        
+        .stat-pald-item .stat-letter {
+            font-weight: 700;
+            font-size: 0.8rem;
+        }
+        
+        .stat-pald-item .stat-value {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/images/logo.png" alt="Restos du Cœur" onerror="this.style.display='none'">
+                <h2>Restos du Cœur</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="nav-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="profile-menu">
+                    <div class="profile-avatar" onclick="toggleProfileMenu()">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="dropdown-item" id="userName">Chargement...</div>
+                        <div class="dropdown-item" id="userEmail" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profil.html" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Mon profil
+                        </a>
+                        <div class="dropdown-item">
+                            <i class="fas fa-moon"></i> Mode sombre
+                            <label class="switch">
+                                <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Déconnexion
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>👨‍👩‍👧‍👦 Gestion des familles</h2>
+                
+                <div class="familles-layout">
+                    <div class="campagnes-panel">
+                        <h3><i class="fas fa-calendar-alt"></i> Campagnes</h3>
+                        <div id="campagne-list"></div>
+                        <button class="btn-nouvelle-campagne" onclick="showAddCampagneModal()">
+                            <i class="fas fa-plus"></i> Nouvelle campagne
+                        </button>
+                    </div>
+                    
+                    <div class="familles-panel">
+                        <div id="familles-container">
+                            <div class="empty-state">
+                                <i class="fas fa-folder-open" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                                <p>Sélectionnez une campagne à gauche</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="campagneModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <h2>Ajouter une campagne</h2>
+            <form id="campagneForm">
+                <div class="form-group">
+                    <label>Année</label>
+                    <input type="number" id="campagneAnnee" class="form-control" required value="2025">
+                </div>
+                <div class="form-group">
+                    <label>Saison</label>
+                    <select id="campagneSaison" class="form-control" required>
+                        <option value="Hiver">Hiver</option>
+                        <option value="Printemps">Printemps</option>
+                        <option value="Été">Été</option>
+                        <option value="Automne">Automne</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
+                    <button type="button" onclick="closeCampagneModal()" class="btn-secondary">Annuler</button>
+                    <button type="submit" class="btn">Créer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="familleModal" class="modal">
+        <div class="modal-content" style="max-width: 700px; max-height: 85vh; overflow-y: auto;">
+            <h2 id="modalTitle">Ajouter une famille</h2>
+            <form id="familleForm">
+                <input type="hidden" id="familleId">
+                <input type="hidden" id="familleCampagneId">
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nom *</label>
+                        <input type="text" id="nom" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Prénom *</label>
+                        <input type="text" id="prenom" class="form-control" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>N° de carte *</label>
+                        <input type="text" id="numero_carte" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre d'adultes *</label>
+                        <input type="number" id="nb_adultes" class="form-control" min="1" value="1" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Type de dotation</label>
+                        <select id="type_dotation" class="form-control">
+                            <option value="normale">Normale</option>
+                            <option value="minoree">Minorée</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Repas par semaine</label>
+                        <input type="number" id="nb_repas_semaine" class="form-control" readonly style="background:var(--bg-tertiary);">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Téléphone</label>
+                        <input type="tel" id="telephone" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="email" class="form-control">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Adresse</label>
+                    <textarea id="adresse" class="form-control" rows="2"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Heure de passage</label>
+                    <input type="text" id="heure_passage" class="form-control" placeholder="Ex: MAR 9H10">
+                </div>
+                
+                <hr>
+                
+                <h3>👶 Enfants</h3>
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>👼 0-6 mois</label>
+                        <input type="number" id="enfants_0_6" class="form-control" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>🍼 6-12 mois</label>
+                        <input type="number" id="enfants_6_12" class="form-control" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>🧒 12-18 mois</label>
+                        <input type="number" id="enfants_12_18" class="form-control" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>🧒 18-36 mois</label>
+                        <input type="number" id="enfants_18_36" class="form-control" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>👧 36-60 mois</label>
+                        <input type="number" id="enfants_36_60" class="form-control" min="0" value="0">
+                    </div>
+                </div>
+                
+                <div id="pointsPreview" class="points-calcul" style="display: none; background: #FFF5F8; border-radius: 12px; padding: 1rem; margin-top: 1rem;">
+                    <div style="text-align: center;">
+                        <strong>⭐ Points adultes (PALD) :</strong>
+                        <span id="pointsAdultesPreview" style="font-size: 1.5rem; font-weight: 800; color: var(--restos-rose);">0</span>
+                    </div>
+                    <div id="pointsEnfantsPreview" style="margin-top: 0.5rem; text-align: center;">
+                        <strong>👶 Points enfants bonus :</strong>
+                        <span id="pointsEnfantsValuePreview" style="font-size: 1.2rem; font-weight: 700; color: #E65100;">0</span>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
+                    <button type="button" onclick="closeFamilleModal()" class="btn-secondary">Annuler</button>
+                    <button type="submit" class="btn">💾 Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="/js/layout.js"></script>
+    <script>
+        var campagnes = [];
+        var familles = [];
+        var campagneActive = null;
+        var searchTerm = '';
+        var sortBy = 'nom';
+        var sortOrder = 'asc';
+        
+        function calculerRepasSemaine(nbAdultes, typeDotation) {
+            var repasNormale = {1:7, 2:10, 3:15, 4:20, 5:25, 6:30, 7:35};
+            var repasMinoree = {1:4, 2:6, 3:9, 4:12, 5:15, 6:18, 7:21};
+            if (typeDotation === 'minoree') {
+                return repasMinoree[nbAdultes] || nbAdultes * 3;
+            }
+            return repasNormale[nbAdultes] || nbAdultes * 7;
+        }
+        
+        function calculerPointsAdultes(nbAdultes, typeDotation) {
+            var repasSemaine = calculerRepasSemaine(nbAdultes, typeDotation);
+            return repasSemaine * 4;
+        }
+        
+        function calculerPointsEnfants(enfants) {
+            var points = {
+                total: 0,
+                accompagnement: 0,
+                laitier: 0,
+                pald: 0
+            };
+            
+            points.accompagnement += (enfants.enfants_6_12 || 0) * 4;
+            points.accompagnement += (enfants.enfants_12_18 || 0) * 6;
+            points.laitier += (enfants.enfants_12_18 || 0) * 4;
+            points.pald += (enfants.enfants_12_18 || 0) * 3;
+            points.accompagnement += (enfants.enfants_18_36 || 0) * 6;
+            points.pald += (enfants.enfants_18_36 || 0) * 3;
+            
+            points.total = points.accompagnement + points.laitier + points.pald;
+            return points;
+        }
+        
+        async function loadCampagnes() {
+            var response = await fetch('/api/campagnes');
+            campagnes = await response.json();
+            displayCampagnes();
+        }
+        
+        function displayCampagnes() {
+            var container = document.getElementById('campagne-list');
+            var grouped = {};
+            for (var i = 0; i < campagnes.length; i++) {
+                var c = campagnes[i];
+                if (!grouped[c.annee]) grouped[c.annee] = [];
+                grouped[c.annee].push(c);
+            }
+            var html = '';
+            var annees = Object.keys(grouped).sort().reverse();
+            for (var a = 0; a < annees.length; a++) {
+                var annee = annees[a];
+                var saisons = grouped[annee];
+                var anneeId = 'annee-' + annee;
+                html += '<div class="campagne-annee">';
+                html += '<div class="campagne-annee-header" onclick="toggleAnnee(\'' + anneeId + '\')">📅 ' + annee + ' <i class="fas fa-chevron-down"></i></div>';
+                html += '<ul class="campagne-saisons" id="' + anneeId + '">';
+                for (var s = 0; s < saisons.length; s++) {
+                    var camp = saisons[s];
+                    var activeClass = (campagneActive && campagneActive.id === camp.id) ? 'active' : '';
+                    html += '<li class="' + activeClass + '" onclick="selectCampagne(' + camp.id + ')">' + camp.saison + '</li>';
+                }
+                html += '</ul></div>';
+            }
+            container.innerHTML = html;
+        }
+        
+        function toggleAnnee(id) {
+            var el = document.getElementById(id);
+            el.classList.toggle('open');
+            var icon = el.previousElementSibling.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('fa-chevron-down');
+                icon.classList.toggle('fa-chevron-up');
+            }
+        }
+        
+        async function selectCampagne(campagneId) {
+            campagneActive = campagnes.find(function(c) { return c.id === campagneId; });
+            displayCampagnes();
+            var response = await fetch('/api/familles/' + campagneId);
+            familles = await response.json();
+            for (var i = 0; i < familles.length; i++) {
+                var f = familles[i];
+                f.nb_repas_semaine = calculerRepasSemaine(f.nb_adultes, f.type_dotation || 'normale');
+            }
+            displayFamilles();
+        }
+        
+        function displayFamilles() {
+            var container = document.getElementById('familles-container');
+            
+            if (!campagneActive) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open" style="font-size: 2rem; margin-bottom: 1rem;"></i><p>Sélectionnez une campagne à gauche</p></div>';
+                return;
+            }
+            
+            var filtered = familles.filter(function(f) {
+                if (!searchTerm) return true;
+                var search = searchTerm.toLowerCase();
+                return (f.nom + ' ' + f.prenom).toLowerCase().includes(search) ||
+                       f.numero_carte.toLowerCase().includes(search) ||
+                       (f.telephone && f.telephone.includes(search));
+            });
+            
+            filtered.sort(function(a, b) {
+                var valA, valB;
+                if (sortBy === 'nom') {
+                    valA = (a.nom + a.prenom).toLowerCase();
+                    valB = (b.nom + b.prenom).toLowerCase();
+                } else if (sortBy === 'adultes') {
+                    valA = a.nb_adultes;
+                    valB = b.nb_adultes;
+                } else {
+                    var numA = parseInt(a.numero_carte);
+                    var numB = parseInt(b.numero_carte);
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        valA = numA;
+                        valB = numB;
+                    } else {
+                        valA = a.numero_carte;
+                        valB = b.numero_carte;
+                    }
+                }
+                if (sortOrder === 'asc') {
+                    return valA > valB ? 1 : -1;
+                } else {
+                    return valA < valB ? 1 : -1;
+                }
+            });
+            
+            // Calcul des totaux détaillés par catégorie PALD + Bébés
+            var totalProtides = 0;
+            var totalAccompagnement = 0;
+            var totalLaitier = 0;
+            var totalDessert = 0;
+            var totalBebes = 0;
+            
+            for (var i = 0; i < filtered.length; i++) {
+                var f = filtered[i];
+                var pointsAdultes = calculerPointsAdultes(f.nb_adultes, f.type_dotation || 'normale');
+                var pointsParCategorie = pointsAdultes / 4;
+                
+                totalProtides += pointsParCategorie;
+                totalAccompagnement += pointsParCategorie;
+                totalLaitier += pointsParCategorie;
+                totalDessert += pointsParCategorie;
+                
+                var enfants = {
+                    enfants_6_12: f.enfants_6_12 || 0,
+                    enfants_12_18: f.enfants_12_18 || 0,
+                    enfants_18_36: f.enfants_18_36 || 0
+                };
+                var enfantsPoints = calculerPointsEnfants(enfants);
+                totalBebes += enfantsPoints.total;
+            }
+            
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="stats-campagne">
+                        <div>
+                            <span><strong>${campagneActive.annee} - ${campagneActive.saison}</strong></span>
+                            <span>👨‍👩‍👧‍👦 0 familles</span>
+                        </div>
+                        <div class="stats-pald">
+                            <div class="stat-pald-item"><div class="stat-letter">🥩</div><div class="stat-value">0</div></div>
+                            <div class="stat-pald-item"><div class="stat-letter">🥕</div><div class="stat-value">0</div></div>
+                            <div class="stat-pald-item"><div class="stat-letter">🥛</div><div class="stat-value">0</div></div>
+                            <div class="stat-pald-item"><div class="stat-letter">🍰</div><div class="stat-value">0</div></div>
+                            <div class="stat-pald-item" style="border-left: 1px solid rgba(255,255,255,0.3); padding-left: 0.8rem;"><div class="stat-letter">👶 Bébés</div><div class="stat-value">0</div></div>
+                        </div>
+                        <div class="action-buttons">
+                            <button onclick="showAddFamilleModal()" class="btn" style="background: white; color: var(--restos-rose);">➕ Ajouter</button>
+                        </div>
+                    </div>
+                    <div class="search-bar">
+                        <div class="search-input">
+                            <input type="text" id="searchInput" placeholder="🔍 Rechercher..." oninput="updateSearch()" value="${searchTerm.replace(/"/g, '&quot;')}">
+                        </div>
+                        <div class="filters">
+                            <button class="${sortBy === 'nom' ? 'active' : ''}" onclick="setSort('nom')">📝 Nom</button>
+                            <button class="${sortBy === 'adultes' ? 'active' : ''}" onclick="setSort('adultes')">👤 Adultes</button>
+                            <button class="${sortBy === 'carte' ? 'active' : ''}" onclick="setSort('carte')">🎫 Carte</button>
+                            <button onclick="toggleSortOrder()">${sortOrder === 'asc' ? '↑' : '↓'}</button>
+                        </div>
+                    </div>
+                    <div class="empty-state">Aucune famille pour cette campagne</div>
+                `;
+                var searchInput = document.getElementById('searchInput');
+                if (searchInput) searchInput.value = searchTerm;
+                return;
+            }
+            
+            var html = `
+                <div class="stats-campagne">
+                    <div>
+                        <span><strong>${campagneActive.annee} - ${campagneActive.saison}</strong></span>
+                        <span>👨‍👩‍👧‍👦 ${filtered.length} familles</span>
+                    </div>
+                    <div class="stats-pald">
+                        <div class="stat-pald-item"><div class="stat-letter">🥩</div><div class="stat-value">${Math.round(totalProtides)}</div></div>
+                        <div class="stat-pald-item"><div class="stat-letter">🥕</div><div class="stat-value">${Math.round(totalAccompagnement)}</div></div>
+                        <div class="stat-pald-item"><div class="stat-letter">🥛</div><div class="stat-value">${Math.round(totalLaitier)}</div></div>
+                        <div class="stat-pald-item"><div class="stat-letter">🍰</div><div class="stat-value">${Math.round(totalDessert)}</div></div>
+                        <div class="stat-pald-item" style="border-left: 1px solid rgba(255,255,255,0.3); padding-left: 0.8rem;"><div class="stat-letter">👶 Bébés</div><div class="stat-value">${Math.round(totalBebes)}</div></div>
+                    </div>
+                    <div class="action-buttons">
+                        <button onclick="showAddFamilleModal()" class="btn" style="background: white; color: var(--restos-rose);">➕ Ajouter</button>
+                    </div>
+                </div>
+                <div class="search-bar">
+                    <div class="search-input">
+                        <input type="text" id="searchInput" placeholder="🔍 Rechercher..." oninput="updateSearch()" value="${searchTerm.replace(/"/g, '&quot;')}">
+                    </div>
+                    <div class="filters">
+                        <button class="${sortBy === 'nom' ? 'active' : ''}" onclick="setSort('nom')">📝 Nom</button>
+                        <button class="${sortBy === 'adultes' ? 'active' : ''}" onclick="setSort('adultes')">👤 Adultes</button>
+                        <button class="${sortBy === 'carte' ? 'active' : ''}" onclick="setSort('carte')">🎫 Carte</button>
+                        <button onclick="toggleSortOrder()">${sortOrder === 'asc' ? '↑' : '↓'}</button>
+                    </div>
+                </div>
+            `;
+            
+            for (var i = 0; i < filtered.length; i++) {
+                var f = filtered[i];
+                var dotationClass = (f.type_dotation === 'minoree') ? 'dotation-minoree' : 'dotation-normale';
+                var dotationText = (f.type_dotation === 'minoree') ? '⭐ Minorée' : '✓ Normale';
+                
+                var pointsAdultes = calculerPointsAdultes(f.nb_adultes, f.type_dotation || 'normale');
+                var pointsParCategorie = pointsAdultes / 4;
+                
+                var enfants = {
+                    enfants_6_12: f.enfants_6_12 || 0,
+                    enfants_12_18: f.enfants_12_18 || 0,
+                    enfants_18_36: f.enfants_18_36 || 0
+                };
+                var enfantsPoints = calculerPointsEnfants(enfants);
+                var pointsTotal = pointsAdultes + enfantsPoints.total;
+                
+                var enfantsDetails = '';
+                if (f.enfants_0_6 > 0) enfantsDetails += `<span class="badge-age">👼 0-6 mois: ${f.enfants_0_6}</span> `;
+                if (f.enfants_6_12 > 0) enfantsDetails += `<span class="badge-age">🍼 6-12 mois: ${f.enfants_6_12}</span> `;
+                if (f.enfants_12_18 > 0) enfantsDetails += `<span class="badge-age">🧒 12-18 mois: ${f.enfants_12_18}</span> `;
+                if (f.enfants_18_36 > 0) enfantsDetails += `<span class="badge-age">🧒 18-36 mois: ${f.enfants_18_36}</span> `;
+                if (f.enfants_36_60 > 0) enfantsDetails += `<span class="badge-age">👧 36-60 mois: ${f.enfants_36_60}</span> `;
+                
+                var telephoneAffichage = f.consentement ? f.telephone : 'Non communiqué';
+                var adresseComplete = f.adresse ? f.adresse + ' ' + (f.code_postal || '') + ' ' + (f.ville || '') : 'Non renseignée';
+                
+                html += `
+                    <div class="famille-card">
+                        <div class="famille-header">
+                            <div class="famille-infos">
+                                <span class="famille-nom">${escapeHtml(f.nom)} ${escapeHtml(f.prenom)}</span>
+                                <span class="famille-carte">🎫 ${escapeHtml(f.numero_carte)}</span>
+                                <span class="famille-points">⭐ ${pointsTotal} pts</span>
+                                <span class="famille-dotation ${dotationClass}">${dotationText}</span>
+                            </div>
+                            <div class="famille-actions">
+                                <button onclick="editFamille(${f.id})" class="btn" style="background: var(--restos-rose); padding: 5px 12px;">✏️</button>
+                                <button onclick="deleteFamille(${f.id})" class="btn-danger" style="padding: 5px 12px;">🗑️</button>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; font-size: 0.8rem;">
+                            <div><strong>👤 Adultes:</strong> ${f.nb_adultes}</div>
+                            <div><strong>🍽️ Repas:</strong> ${f.nb_repas_semaine}</div>
+                            <div><strong>🕐 Heure:</strong> ${escapeHtml(f.heure_passage) || '—'}</div>
+                            <div><strong>📞 Tél:</strong> ${escapeHtml(telephoneAffichage)}</div>
+                            <div><strong>📍 Adresse:</strong> ${escapeHtml(adresseComplete)}</div>
+                        </div>
+                        
+                    
+                        
+                        ${enfantsPoints.total > 0 ? `
+                        <div class="points-enfants">
+                            <div class="titre-section">👶 Points enfants (bonus)</div>
+                            <div class="points-detail">
+                                <div class="point-categorie"><div class="label">🥕 Accompagnement</div><div class="value">${enfantsPoints.accompagnement}</div></div>
+                                <div class="point-categorie"><div class="label">🥛 Laitier</div><div class="value">${enfantsPoints.laitier}</div></div>
+                                <div class="point-categorie"><div class="label">🍽️ PALD</div><div class="value">${enfantsPoints.pald}</div></div>
+                            </div>
+                            <div style="font-size: 0.65rem; text-align: center; margin-top: 0.3rem;">
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${enfantsDetails ? `<div class="enfants-list"><strong>👶 Enfants:</strong><br> ${enfantsDetails}</div>` : ''}
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+            
+            var searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.value = searchTerm;
+                searchInput.focus();
+                if (searchTerm.length > 0) {
+                    searchInput.setSelectionRange(searchTerm.length, searchTerm.length);
+                }
+            }
+        }
+        
+        function updateSearch() {
+            searchTerm = document.getElementById('searchInput').value;
+            displayFamilles();
+        }
+        
+        function setSort(by) {
+            if (sortBy === by) {
+                sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortBy = by;
+                sortOrder = 'asc';
+            }
+            displayFamilles();
+        }
+        
+        function toggleSortOrder() {
+            sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+            displayFamilles();
+        }
+        
+        function updatePointsPreview() {
+            var nbAdultes = parseInt(document.getElementById('nb_adultes').value) || 1;
+            var typeDotation = document.getElementById('type_dotation').value;
+            var repasSemaine = calculerRepasSemaine(nbAdultes, typeDotation);
+            document.getElementById('nb_repas_semaine').value = repasSemaine;
+            
+            var pointsAdultes = calculerPointsAdultes(nbAdultes, typeDotation);
+            document.getElementById('pointsAdultesPreview').innerText = pointsAdultes;
+            
+            var enfants = {
+                enfants_6_12: parseInt(document.getElementById('enfants_6_12').value) || 0,
+                enfants_12_18: parseInt(document.getElementById('enfants_12_18').value) || 0,
+                enfants_18_36: parseInt(document.getElementById('enfants_18_36').value) || 0
+            };
+            var enfantsPoints = calculerPointsEnfants(enfants);
+            document.getElementById('pointsEnfantsValuePreview').innerText = enfantsPoints.total;
+            
+            document.getElementById('pointsPreview').style.display = 'block';
+        }
+        
+        function showAddFamilleModal() {
+            if (!campagneActive) {
+                alert('Sélectionnez d\'abord une campagne');
+                return;
+            }
+            document.getElementById('modalTitle').textContent = 'Ajouter une famille';
+            document.getElementById('familleForm').reset();
+            document.getElementById('familleId').value = '';
+            document.getElementById('familleCampagneId').value = campagneActive.id;
+            document.getElementById('type_dotation').value = 'normale';
+            document.getElementById('nb_adultes').value = '1';
+            document.getElementById('pointsPreview').style.display = 'none';
+            document.getElementById('familleModal').style.display = 'block';
+            
+            document.getElementById('nb_adultes').oninput = updatePointsPreview;
+            document.getElementById('type_dotation').onchange = updatePointsPreview;
+            document.getElementById('enfants_6_12').oninput = updatePointsPreview;
+            document.getElementById('enfants_12_18').oninput = updatePointsPreview;
+            document.getElementById('enfants_18_36').oninput = updatePointsPreview;
+            
+            updatePointsPreview();
+        }
+        
+        async function editFamille(id) {
+            var famille = null;
+            for (var i = 0; i < familles.length; i++) {
+                if (familles[i].id === id) {
+                    famille = familles[i];
+                    break;
+                }
+            }
+            if (!famille) return;
+            
+            document.getElementById('modalTitle').textContent = 'Modifier la famille';
+            document.getElementById('familleId').value = famille.id;
+            document.getElementById('familleCampagneId').value = famille.campagne_id;
+            document.getElementById('nom').value = famille.nom;
+            document.getElementById('prenom').value = famille.prenom;
+            document.getElementById('numero_carte').value = famille.numero_carte;
+            document.getElementById('nb_adultes').value = famille.nb_adultes;
+            document.getElementById('type_dotation').value = famille.type_dotation || 'normale';
+            document.getElementById('telephone').value = famille.telephone || '';
+            document.getElementById('adresse').value = famille.adresse || '';
+            document.getElementById('email').value = famille.email || '';
+            document.getElementById('heure_passage').value = famille.heure_passage || '';
+            document.getElementById('enfants_0_6').value = famille.enfants_0_6 || 0;
+            document.getElementById('enfants_6_12').value = famille.enfants_6_12 || 0;
+            document.getElementById('enfants_12_18').value = famille.enfants_12_18 || 0;
+            document.getElementById('enfants_18_36').value = famille.enfants_18_36 || 0;
+            document.getElementById('enfants_36_60').value = famille.enfants_36_60 || 0;
+            
+            document.getElementById('nb_adultes').oninput = updatePointsPreview;
+            document.getElementById('type_dotation').onchange = updatePointsPreview;
+            document.getElementById('enfants_6_12').oninput = updatePointsPreview;
+            document.getElementById('enfants_12_18').oninput = updatePointsPreview;
+            document.getElementById('enfants_18_36').oninput = updatePointsPreview;
+            
+            updatePointsPreview();
+            document.getElementById('familleModal').style.display = 'block';
+        }
+        
+        async function deleteFamille(id) {
+            if (confirm('Supprimer définitivement cette famille ?')) {
+                var response = await fetch('/api/admin/familles/' + id, { method: 'DELETE' });
+                if (response.ok) {
+                    selectCampagne(campagneActive.id);
+                } else {
+                    alert('Erreur lors de la suppression');
+                }
+            }
+        }
+        
+        document.getElementById('familleForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            var id = document.getElementById('familleId').value;
+            var data = {
+                campagne_id: parseInt(document.getElementById('familleCampagneId').value),
+                nom: document.getElementById('nom').value,
+                prenom: document.getElementById('prenom').value,
+                numero_carte: document.getElementById('numero_carte').value,
+                nb_adultes: parseInt(document.getElementById('nb_adultes').value),
+                type_dotation: document.getElementById('type_dotation').value,
+                telephone: document.getElementById('telephone').value,
+                email: document.getElementById('email').value,
+                adresse: document.getElementById('adresse').value,
+                heure_passage: document.getElementById('heure_passage').value,
+                enfants_0_6: parseInt(document.getElementById('enfants_0_6').value) || 0,
+                enfants_6_12: parseInt(document.getElementById('enfants_6_12').value) || 0,
+                enfants_12_18: parseInt(document.getElementById('enfants_12_18').value) || 0,
+                enfants_18_36: parseInt(document.getElementById('enfants_18_36').value) || 0,
+                enfants_36_60: parseInt(document.getElementById('enfants_36_60').value) || 0,
+                consentement: true
+            };
+            
+            var url = id ? '/api/admin/familles/' + id : '/api/admin/familles';
+            var method = id ? 'PUT' : 'POST';
+            
+            var response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                closeFamilleModal();
+                selectCampagne(campagneActive.id);
+            } else {
+                var error = await response.json();
+                alert('Erreur: ' + (error.error || 'Erreur lors de l\'enregistrement'));
+            }
+        });
+        
+        function showAddCampagneModal() {
+            document.getElementById('campagneModal').style.display = 'block';
+        }
+        
+        function closeCampagneModal() {
+            document.getElementById('campagneModal').style.display = 'none';
+        }
+        
+        function closeFamilleModal() {
+            document.getElementById('familleModal').style.display = 'none';
+        }
+        
+        document.getElementById('campagneForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            var data = {
+                annee: parseInt(document.getElementById('campagneAnnee').value),
+                saison: document.getElementById('campagneSaison').value
+            };
+            var response = await fetch('/api/admin/campagnes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (response.ok) {
+                closeCampagneModal();
+                loadCampagnes();
+            } else {
+                alert('Erreur lors de la création');
+            }
+        });
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        loadCampagnes();
+    </script>
+</body>
+</html>

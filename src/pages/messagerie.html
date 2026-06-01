@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messagerie - Restos du Cœur</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .messagerie-container {
+            display: flex;
+            gap: 1rem;
+            height: calc(100vh - 200px);
+            min-height: 500px;
+        }
+        
+        .conversations-list {
+            width: 320px;
+            background: var(--bg-primary);
+            border-radius: 20px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .conversations-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-primary);
+        }
+        
+        .conversations-header h3 {
+            margin-bottom: 0.5rem;
+        }
+        
+        .btn-nouveau-message {
+            width: 100%;
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.6rem;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-nouveau-message:hover {
+            background: var(--restos-rose-fonce);
+            transform: translateY(-1px);
+        }
+        
+        .conversations-scroll {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .conversation-item {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+        
+        .conversation-item:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .conversation-item.active {
+            background: var(--bg-tertiary);
+            border-left: 3px solid var(--restos-rose);
+        }
+        
+        .conversation-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--restos-rose);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        
+        .conversation-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .conversation-nom {
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .conversation-nom span {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+        
+        .conversation-last-message {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .unread-badge {
+            background: var(--restos-rose);
+            color: white;
+            border-radius: 20px;
+            padding: 0.15rem 0.5rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        
+        .chat-panel {
+            flex: 1;
+            background: var(--bg-primary);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .chat-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .chat-header-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--restos-rose);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .chat-header-info h4 {
+            margin-bottom: 0.1rem;
+        }
+        
+        .chat-header-info p {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+        
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .message {
+            display: flex;
+            gap: 0.75rem;
+            max-width: 70%;
+        }
+        
+        .message-mine {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--restos-rose);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+        
+        .message-bubble {
+            background: var(--bg-tertiary);
+            padding: 0.6rem 1rem;
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message-mine .message-bubble {
+            background: var(--restos-rose);
+            color: white;
+            border-bottom-right-radius: 4px;
+            border-bottom-left-radius: 18px;
+        }
+        
+        .message-text {
+            font-size: 0.9rem;
+        }
+        
+        .message-time {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+        
+        .message-mine .message-time {
+            text-align: right;
+        }
+        
+        .chat-input-container {
+            padding: 1rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 24px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            resize: none;
+            font-family: inherit;
+        }
+        
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--restos-rose);
+        }
+        
+        .btn-envoyer {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-envoyer:hover {
+            background: var(--restos-rose-fonce);
+            transform: translateY(-1px);
+        }
+        
+        .empty-chat {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            text-align: center;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .participants-select {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.5rem;
+        }
+        
+        .participant-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            cursor: pointer;
+        }
+        
+        .participant-checkbox:hover {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+        }
+        
+        .participant-checkbox input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .btn-annuler {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-annuler:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+        
+        .btn-ajouter {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-ajouter:hover {
+            background: var(--restos-rose-fonce);
+            transform: translateY(-1px);
+        }
+        
+        @media (max-width: 768px) {
+            .messagerie-container {
+                flex-direction: column;
+                height: auto;
+            }
+            .conversations-list {
+                width: 100%;
+                max-height: 300px;
+            }
+            .message {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/images/logo.png" alt="Restos du Cœur" onerror="this.style.display='none'">
+                <h2>Restos du Cœur</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="nav-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="profile-menu">
+                    <div class="profile-avatar" onclick="toggleProfileMenu()">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="dropdown-item" id="userName">Chargement...</div>
+                        <div class="dropdown-item" id="userEmail" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profil.html" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Mon profil
+                        </a>
+                        <div class="dropdown-item">
+                            <i class="fas fa-moon"></i> Mode sombre
+                            <label class="switch">
+                                <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Déconnexion
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2><i class="fas fa-comments"></i> Messagerie</h2>
+                
+                <div class="messagerie-container">
+                    <div class="conversations-list">
+                        <div class="conversations-header">
+                            <h3>Conversations</h3>
+                            <button class="btn-nouveau-message" onclick="showNewMessageModal()">
+                                <i class="fas fa-plus"></i> Nouveau message
+                            </button>
+                        </div>
+                        <div class="conversations-scroll" id="conversations-list">
+                            <div class="loading">Chargement...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-panel" id="chat-panel">
+                        <div class="empty-chat">
+                            <i class="fas fa-comments" style="font-size: 3rem;"></i>
+                            <p>Sélectionnez une conversation pour commencer à discuter</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal nouveau message (groupe) -->
+    <div id="newMessageModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <h2>Nouveau message</h2>
+            <div class="form-group">
+                <label>Type de conversation</label>
+                <select id="conversationType" class="form-control" onchange="toggleParticipantsMode()">
+                    <option value="private">Message privé (1 destinataire)</option>
+                    <option value="group">Conversation de groupe (plusieurs personnes)</option>
+                </select>
+            </div>
+            <div class="form-group" id="singleSelectGroup">
+                <label>Destinataire</label>
+                <select id="destinataire" class="form-control">
+                    <option value="">-- Sélectionner --</option>
+                </select>
+            </div>
+            <div class="form-group" id="multiSelectGroup" style="display: none;">
+                <label>Participants</label>
+                <div id="participantsList" class="participants-select"></div>
+                <small class="small-text">Cochez les personnes à ajouter à la conversation</small>
+            </div>
+            <div class="form-group">
+                <label>Nom du groupe (optionnel)</label>
+                <input type="text" id="groupeNom" class="form-control" placeholder="Laissez vide pour un nom automatique">
+            </div>
+            <div class="form-group">
+                <label>Message</label>
+                <textarea id="nouveauMessage" class="form-control" rows="4" placeholder="Votre message..."></textarea>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
+                <button type="button" onclick="closeNewMessageModal()" class="btn-annuler">Annuler</button>
+                <button type="button" onclick="sendNewMessage()" class="btn-ajouter">Envoyer</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/layout.js"></script>
+    <script>
+        var conversations = [];
+        var currentConversation = null;
+        var benevoles = [];
+        var pollInterval = null;
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function toggleParticipantsMode() {
+            var type = document.getElementById('conversationType').value;
+            var singleDiv = document.getElementById('singleSelectGroup');
+            var multiDiv = document.getElementById('multiSelectGroup');
+            
+            if (type === 'private') {
+                singleDiv.style.display = 'block';
+                multiDiv.style.display = 'none';
+            } else {
+                singleDiv.style.display = 'none';
+                multiDiv.style.display = 'block';
+            }
+        }
+        
+        async function loadConversations() {
+            var response = await fetch('/api/conversations');
+            conversations = await response.json();
+            displayConversations();
+        }
+        
+        function displayConversations() {
+            var container = document.getElementById('conversations-list');
+            
+            if (conversations.length === 0) {
+                container.innerHTML = '<div class="empty-state" style="padding: 2rem;">Aucune conversation</div>';
+                return;
+            }
+            
+            var html = '';
+            for (var i = 0; i < conversations.length; i++) {
+                var c = conversations[i];
+                var nom = c.nom || (c.type === 'private' ? 'Discussion privée' : 'Conversation de groupe');
+                var lastMessage = c.last_message || 'Aucun message';
+                var date = c.last_message_date ? new Date(c.last_message_date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+                var activeClass = currentConversation && currentConversation.id === c.id ? 'active' : '';
+                
+                html += `
+                    <div class="conversation-item ${activeClass}" onclick="selectConversation(${c.id})">
+                        <div class="conversation-avatar">
+                            <i class="fas fa-comment"></i>
+                        </div>
+                        <div class="conversation-info">
+                            <div class="conversation-nom">
+                                <span>${escapeHtml(nom)}</span>
+                                <span>${escapeHtml(date)}</span>
+                            </div>
+                            <div class="conversation-last-message">${escapeHtml(lastMessage.substring(0, 50))}${lastMessage.length > 50 ? '...' : ''}</div>
+                        </div>
+                        ${c.unread_count > 0 ? `<div class="unread-badge">${c.unread_count}</div>` : ''}
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+        
+        async function selectConversation(conversationId) {
+            currentConversation = conversations.find(c => c.id === conversationId);
+            displayConversations();
+            
+            var response = await fetch('/api/conversations/' + conversationId + '/messages');
+            var messages = await response.json();
+            displayMessages(messages);
+        }
+        
+        function displayMessages(messages) {
+            var container = document.getElementById('chat-panel');
+            var userId = window.currentUserId;
+            
+            if (!currentConversation) {
+                container.innerHTML = `
+                    <div class="empty-chat">
+                        <i class="fas fa-comments" style="font-size: 3rem;"></i>
+                        <p>Sélectionnez une conversation</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            var nomConversation = currentConversation.nom || (currentConversation.type === 'private' ? 'Discussion privée' : 'Conversation de groupe');
+            
+            var html = `
+                <div class="chat-header">
+                    <div class="chat-header-avatar">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <div class="chat-header-info">
+                        <h4>${escapeHtml(nomConversation)}</h4>
+                        <p>${currentConversation.type === 'group' ? 'Conversation de groupe' : 'Message privé'}</p>
+                    </div>
+                </div>
+                <div class="messages-container" id="messages-container">
+            `;
+            
+            for (var i = 0; i < messages.length; i++) {
+                var m = messages[i];
+                var isMine = m.user_id === userId;
+                var messageClass = isMine ? 'message-mine' : '';
+                var avatarInitials = (m.prenom ? m.prenom.charAt(0) : '') + (m.nom ? m.nom.charAt(0) : '');
+                var time = new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                
+                html += `
+                    <div class="message ${messageClass}">
+                        <div class="message-avatar">
+                            ${avatarInitials || '<i class="fas fa-user"></i>'}
+                        </div>
+                        <div class="message-bubble">
+                            <div class="message-text">${escapeHtml(m.message)}</div>
+                            <div class="message-time">${escapeHtml(time)}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += `
+                </div>
+                <div class="chat-input-container">
+                    <textarea class="chat-input" id="chatInput" placeholder="Écrivez votre message..." rows="1" onkeypress="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+                    <button class="btn-envoyer" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            
+            var messagesContainer = document.getElementById('messages-container');
+            if (messagesContainer) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            document.getElementById('chatInput')?.focus();
+        }
+        
+        async function sendMessage() {
+            var input = document.getElementById('chatInput');
+            var message = input.value.trim();
+            
+            if (!message || !currentConversation) return;
+            
+            input.value = '';
+            input.style.height = 'auto';
+            
+            var response = await fetch('/api/conversations/' + currentConversation.id + '/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message })
+            });
+            
+            if (response.ok) {
+                var messagesResponse = await fetch('/api/conversations/' + currentConversation.id + '/messages');
+                var messages = await messagesResponse.json();
+                displayMessages(messages);
+                loadConversations();
+            }
+        }
+        
+        async function loadBenevoles() {
+            var response = await fetch('/api/users/benevoles');
+            benevoles = await response.json();
+            
+            var select = document.getElementById('destinataire');
+            var participantsDiv = document.getElementById('participantsList');
+            var currentUserId = window.currentUserId;
+            
+            select.innerHTML = '<option value="">-- Sélectionner --</option>';
+            participantsDiv.innerHTML = '';
+            
+            for (var i = 0; i < benevoles.length; i++) {
+                var b = benevoles[i];
+                if (b.id !== currentUserId) {
+                    select.innerHTML += `<option value="${b.id}">${escapeHtml(b.prenom)} ${escapeHtml(b.nom)} (${escapeHtml(b.email)})</option>`;
+                    participantsDiv.innerHTML += `
+                        <label class="participant-checkbox">
+                            <input type="checkbox" value="${b.id}">
+                            <span>${escapeHtml(b.prenom)} ${escapeHtml(b.nom)}</span>
+                        </label>
+                    `;
+                }
+            }
+        }
+        
+        function showNewMessageModal() {
+            loadBenevoles();
+            document.getElementById('nouveauMessage').value = '';
+            document.getElementById('groupeNom').value = '';
+            document.getElementById('conversationType').value = 'private';
+            toggleParticipantsMode();
+            document.getElementById('newMessageModal').style.display = 'block';
+        }
+        
+        function closeNewMessageModal() {
+            document.getElementById('newMessageModal').style.display = 'none';
+        }
+        
+        async function sendNewMessage() {
+            var type = document.getElementById('conversationType').value;
+            var message = document.getElementById('nouveauMessage').value.trim();
+            var groupeNom = document.getElementById('groupeNom').value.trim();
+            
+            if (!message) {
+                alert('Veuillez écrire un message');
+                return;
+            }
+            
+            if (type === 'private') {
+                var destId = document.getElementById('destinataire').value;
+                if (!destId) {
+                    alert('Veuillez sélectionner un destinataire');
+                    return;
+                }
+                
+                var response = await fetch('/api/conversations/private', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ other_user_id: parseInt(destId) })
+                });
+                
+                var result = await response.json();
+                
+                if (result.success) {
+                    var messageResponse = await fetch('/api/conversations/' + result.conversation_id + '/messages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: message })
+                    });
+                    
+                    if (messageResponse.ok) {
+                        closeNewMessageModal();
+                        loadConversations();
+                        selectConversation(result.conversation_id);
+                    }
+                }
+            } else {
+                // Conversation de groupe
+                var participants = [];
+                var checkboxes = document.querySelectorAll('#participantsList input[type="checkbox"]:checked');
+                for (var i = 0; i < checkboxes.length; i++) {
+                    participants.push(parseInt(checkboxes[i].value));
+                }
+                
+                if (participants.length < 2) {
+                    alert('Sélectionnez au moins 2 participants pour une conversation de groupe');
+                    return;
+                }
+                
+                // Ajouter l'utilisateur courant
+                participants.push(window.currentUserId);
+                
+                var response = await fetch('/api/conversations/group', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        participants: participants,
+                        nom: groupeNom || null
+                    })
+                });
+                
+                var result = await response.json();
+                
+                if (result.success) {
+                    var messageResponse = await fetch('/api/conversations/' + result.conversation_id + '/messages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: message })
+                    });
+                    
+                    if (messageResponse.ok) {
+                        closeNewMessageModal();
+                        loadConversations();
+                        selectConversation(result.conversation_id);
+                    }
+                } else {
+                    alert('Erreur: ' + (result.error || 'Création impossible'));
+                }
+            }
+        }
+        
+        async function getCurrentUser() {
+            var response = await fetch('/api/user/profile');
+            var user = await response.json();
+            window.currentUserId = user.id;
+            document.getElementById('userName').innerHTML = (user.prenom || '') + ' ' + (user.nom || '');
+            document.getElementById('userEmail').innerHTML = user.email || '';
+        }
+        
+        function startPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(function() {
+                loadConversations();
+                if (currentConversation) {
+                    fetch('/api/conversations/' + currentConversation.id + '/messages')
+                        .then(r => r.json())
+                        .then(messages => displayMessages(messages));
+                }
+            }, 5000);
+        }
+        
+        getCurrentUser();
+        loadConversations();
+        startPolling();
+    </script>
+</body>
+</html>

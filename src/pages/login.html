@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - Restos du Cœur</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .login-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .login-card {
+            background: var(--bg-primary);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .login-card h2 {
+            color: var(--restos-rose);
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .separator {
+            text-align: center;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+        
+        .separator:before,
+        .separator:after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: calc(50% - 30px);
+            height: 1px;
+            background: var(--border-color);
+        }
+        
+        .separator:before {
+            left: 0;
+        }
+        
+        .separator:after {
+            right: 0;
+        }
+        
+        .separator span {
+            background: var(--bg-primary);
+            padding: 0 1rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+        
+        .message {
+            padding: 0.75rem;
+            border-radius: 12px;
+            margin-top: 1rem;
+        }
+        
+        .message-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        .message-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .message-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .register-form {
+            display: none;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .register-form.show {
+            display: block;
+        }
+        
+        .small-text {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/images/logo.png" alt="Restos du Cœur" onerror="this.style.display='none'">
+                <h2>Restos du Cœur</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Accueil</span>
+                </a>
+                <a href="/informations" class="nav-item">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Informations</span>
+                </a>
+                <a href="/login.html" class="nav-item active">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Connexion</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="nav-item" onclick="logout()" style="display: none;" id="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="profile-menu">
+                    <div class="profile-avatar" onclick="toggleProfileMenu()">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="dropdown-item" id="userName">Chargement...</div>
+                        <div class="dropdown-item" id="userEmail" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profil.html" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Mon profil
+                        </a>
+                        <div class="dropdown-item">
+                            <i class="fas fa-moon"></i> Mode sombre
+                            <label class="switch">
+                                <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Déconnexion
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="login-container">
+                <div class="login-card">
+                    <h2><i class="fas fa-sign-in-alt"></i> Connexion</h2>
+                    
+                    <div id="login-form">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="login-email" class="form-control" placeholder="votre@email.fr">
+                        </div>
+                        <div class="form-group">
+                            <label>Mot de passe</label>
+                            <input type="password" id="login-password" class="form-control" placeholder="Votre mot de passe">
+                        </div>
+                        <button onclick="login()" class="btn" style="width: 100%;">Se connecter</button>
+                    </div>
+                    
+                    <div class="separator">
+                        <span>ou</span>
+                    </div>
+                    
+                    <div id="register-section">
+                        <p style="text-align: center; margin-bottom: 1rem;">L'inscription est réservée aux personnes autorisées.</p>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="register-email" class="form-control" placeholder="votre@email.fr">
+                        </div>
+                        <button onclick="checkWhitelist()" class="btn-secondary" style="width: 100%;">Vérifier mon email</button>
+                    </div>
+                    
+                    <div id="register-form" class="register-form">
+                        <div class="form-group">
+                            <label>Nom</label>
+                            <input type="text" id="register-nom" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Prénom</label>
+                            <input type="text" id="register-prenom" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Mot de passe</label>
+                            <input type="password" id="register-password" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirmer le mot de passe</label>
+                            <input type="password" id="register-confirm-password" class="form-control">
+                        </div>
+                        <button onclick="register()" class="btn" style="width: 100%;">Créer mon compte</button>
+                    </div>
+                    
+                    <div id="message" class="message" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/layout.js"></script>
+    <script>
+        async function login() {
+            var email = document.getElementById('login-email').value;
+            var password = document.getElementById('login-password').value;
+            var messageDiv = document.getElementById('message');
+            
+            if (!email || !password) {
+                showMessage('Veuillez remplir tous les champs', 'error');
+                return;
+            }
+            
+            try {
+                var response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, password: password })
+                });
+                
+                var data = await response.json();
+                
+                if (data.success) {
+                    showMessage('Connexion réussie ! Redirection...', 'success');
+                    setTimeout(function() {
+                        if (data.role === 'admin') {
+                            window.location.href = '/admin/dashboard.html';
+                        } else {
+                            window.location.href = '/benevole/dashboard.html';
+                        }
+                    }, 1500);
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showMessage('Erreur de connexion', 'error');
+            }
+        }
+        
+        async function checkWhitelist() {
+            var email = document.getElementById('register-email').value;
+            var messageDiv = document.getElementById('message');
+            
+            if (!email) {
+                showMessage('Veuillez entrer un email', 'error');
+                return;
+            }
+            
+            try {
+                var response = await fetch('/api/check-whitelist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email })
+                });
+                
+                var data = await response.json();
+                
+                if (data.exists) {
+                    showMessage('Email autorisé ! Vous pouvez créer votre compte (rôle: ' + data.role + ')', 'success');
+                    document.getElementById('register-form').classList.add('show');
+                } else {
+                    showMessage('Email non autorisé. Contactez l\'administrateur.', 'error');
+                    document.getElementById('register-form').classList.remove('show');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showMessage('Erreur de vérification', 'error');
+            }
+        }
+        
+        async function register() {
+            var email = document.getElementById('register-email').value;
+            var nom = document.getElementById('register-nom').value;
+            var prenom = document.getElementById('register-prenom').value;
+            var password = document.getElementById('register-password').value;
+            var confirm = document.getElementById('register-confirm-password').value;
+            
+            if (!nom || !prenom || !password) {
+                showMessage('Veuillez remplir tous les champs', 'error');
+                return;
+            }
+            
+            if (password !== confirm) {
+                showMessage('Les mots de passe ne correspondent pas', 'error');
+                return;
+            }
+            
+            try {
+                var response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, password: password, nom: nom, prenom: prenom })
+                });
+                
+                var data = await response.json();
+                
+                if (data.success) {
+                    showMessage('Inscription réussie ! Vous pouvez maintenant vous connecter.', 'success');
+                    document.getElementById('register-form').classList.remove('show');
+                    document.getElementById('register-email').value = '';
+                    document.getElementById('register-nom').value = '';
+                    document.getElementById('register-prenom').value = '';
+                    document.getElementById('register-password').value = '';
+                    document.getElementById('register-confirm-password').value = '';
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showMessage('Erreur d\'inscription', 'error');
+            }
+        }
+        
+        function showMessage(msg, type) {
+            var messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = msg;
+            messageDiv.className = 'message message-' + type;
+            messageDiv.style.display = 'block';
+            
+            setTimeout(function() {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        async function checkAuth() {
+            try {
+                var response = await fetch('/api/check-auth');
+                var data = await response.json();
+                
+                if (data.isAuthenticated) {
+                    if (data.user.role === 'admin') {
+                        window.location.href = '/admin/dashboard.html';
+                    } else {
+                        window.location.href = '/benevole/dashboard.html';
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        checkAuth();
+    </script>
+</body>
+</html>

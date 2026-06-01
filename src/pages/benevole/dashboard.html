@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Espace Bénévole - Restos du Cœur</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, var(--restos-rose) 0%, var(--restos-rose-fonce) 100%);
+            border-radius: 20px;
+            padding: 1.5rem;
+            color: white;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .welcome-card {
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--restos-rose);
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .info-card {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 1.2rem;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .info-card h3 {
+            color: var(--restos-rose);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            border-bottom: 2px solid var(--restos-rose);
+            padding-bottom: 0.5rem;
+            display: inline-block;
+        }
+        
+        .next-mission {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .next-mission-date {
+            font-weight: 700;
+            color: var(--restos-rose);
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/images/logo.png" alt="Restos du Cœur" onerror="this.style.display='none'">
+                <h2>Restos du Cœur</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="nav-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="profile-menu">
+                    <div class="profile-avatar" onclick="toggleProfileMenu()">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="dropdown-item" id="userName">Chargement...</div>
+                        <div class="dropdown-item" id="userEmail" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profil.html" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Mon profil
+                        </a>
+                        <div class="dropdown-item">
+                            <i class="fas fa-moon"></i> Mode sombre
+                            <label class="switch">
+                                <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Déconnexion
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="welcome-card">
+                <h2>👋 Bonjour <span id="userPrenomNom"></span> !</h2>
+                <p>Bienvenue dans votre espace bénévole. Retrouvez ici vos missions, les actualités et les informations importantes.</p>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="missionsCount">0</div>
+                    <div class="stat-label">Missions à venir</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="missionsPasseesCount">0</div>
+                    <div class="stat-label">Missions effectuées</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="heuresCount">0</div>
+                    <div class="stat-label">Heures estimées</div>
+                </div>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3><i class="fas fa-calendar-alt"></i> Prochaines missions</h3>
+                    <div id="prochainesMissions">
+                        <div class="loading">Chargement...</div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <a href="/benevole/planning.html" class="btn" style="display: inline-block; text-decoration: none;">📅 Voir tout le planning</a>
+                    </div>
+                </div>
+                
+                <div class="info-card">
+                    <h3><i class="fas fa-bullhorn"></i> Dernières infos</h3>
+                    <div id="dernieresInfos">
+                        <div class="loading">Chargement...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/layout.js"></script>
+    <script>
+        async function loadDashboard() {
+            try {
+                // Récupérer les infos utilisateur
+                var userResponse = await fetch('/api/user/profile');
+                var user = await userResponse.json();
+                document.getElementById('userPrenomNom').innerText = (user.prenom || '') + ' ' + (user.nom || '');
+                
+                // Récupérer les créneaux
+                var creneauxResponse = await fetch('/api/creneaux');
+                var creneaux = await creneauxResponse.json();
+                
+                var missionsCount = creneaux.length;
+                document.getElementById('missionsCount').innerText = missionsCount;
+                
+                // Calculer les heures estimées (2h par mission par défaut)
+                document.getElementById('heuresCount').innerText = missionsCount * 2;
+                
+                // Afficher les prochaines missions (max 3)
+                var prochainesDiv = document.getElementById('prochainesMissions');
+                if (creneaux.length === 0) {
+                    prochainesDiv.innerHTML = '<div class="empty-state">Aucune mission à venir</div>';
+                } else {
+                    var html = '';
+                    for (var i = 0; i < Math.min(creneaux.length, 3); i++) {
+                        var c = creneaux[i];
+                        var date = new Date(c.date_creneau).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+                        var statutClass = c.mon_statut === 'inscrit' ? 'inscrit' : '';
+                        html += `
+                            <div class="next-mission">
+                                <div class="next-mission-date">📅 ${date}</div>
+                                <div><strong>${getTypeLabel(c.type_activite)}</strong></div>
+                                <div>⏰ ${c.heure_debut} - ${c.heure_fin}</div>
+                                <div>📍 ${c.places_total - c.places_prises} places disponibles</div>
+                            </div>
+                        `;
+                    }
+                    prochainesDiv.innerHTML = html;
+                }
+                
+                // Récupérer l'historique
+                var historiqueResponse = await fetch('/api/creneaux/passes');
+                var historique = await historiqueResponse.json();
+                document.getElementById('missionsPasseesCount').innerText = historique.length;
+                
+                // Récupérer les dernières informations
+                var messagesResponse = await fetch('/api/messages');
+                var messages = await messagesResponse.json();
+                var infosDiv = document.getElementById('dernieresInfos');
+                if (messages.length === 0) {
+                    infosDiv.innerHTML = '<div class="empty-state">Aucune information</div>';
+                } else {
+                    var html = '';
+                    for (var i = 0; i < Math.min(messages.length, 3); i++) {
+                        var m = messages[i];
+                        html += `
+                            <div class="next-mission">
+                                <div class="next-mission-date">📢 ${escapeHtml(m.titre)}</div>
+                                <div style="font-size: 0.85rem;">${escapeHtml(m.contenu).substring(0, 100)}${m.contenu.length > 100 ? '...' : ''}</div>
+                            </div>
+                        `;
+                    }
+                    infosDiv.innerHTML = html;
+                }
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        function getTypeLabel(type) {
+            var types = {
+                'distribution': '🍽️ Distribution',
+                'preparation': '🍳 Préparation',
+                'tri': '📦 Tri',
+                'livraison': '🚚 Livraison',
+                'administration': '📋 Administrative'
+            };
+            return types[type] || type;
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        loadDashboard();
+    </script>
+</body>
+</html>

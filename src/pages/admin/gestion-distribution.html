@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distribution - Restos du Cœur</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .distribution-container {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .campagne-selector {
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .besoins-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .besoin-card {
+            background: linear-gradient(135deg, var(--restos-rose) 0%, var(--restos-rose-fonce) 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .besoin-card .value {
+            font-size: 2rem;
+            font-weight: 800;
+        }
+        
+        .besoin-card .label {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+        
+        .emplacements-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .emplacement-card {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 1rem;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--restos-rose);
+        }
+        
+        .emplacement-card h3 {
+            color: var(--restos-rose);
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+        
+        .produit-liste {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .produit-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .btn-generer {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-imprimer {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        
+        .distribution-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .besoins-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .emplacements-grid {
+                grid-template-columns: 1fr;
+            }
+            .distribution-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            border-radius: 16px;
+        }
+        
+        .date-badge {
+            background: var(--restos-rose);
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/images/logo.png" alt="Restos du Cœur" onerror="this.style.display='none'">
+                <h2>Restos du Cœur</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="nav-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="profile-menu">
+                    <div class="profile-avatar" onclick="toggleProfileMenu()">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="dropdown-item" id="userName">Chargement...</div>
+                        <div class="dropdown-item" id="userEmail" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profil.html" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Mon profil
+                        </a>
+                        <div class="dropdown-item">
+                            <i class="fas fa-moon"></i> Mode sombre
+                            <label class="switch">
+                                <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Déconnexion
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>🍽️ Préparation des distributions</h2>
+                
+                <div class="campagne-selector">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>📅 Campagne</label>
+                        <select id="campagneSelect" class="form-control" onchange="loadBesoins()">
+                            <option value="">-- Sélectionner une campagne --</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="distribution-content">
+                    <div class="empty-state">
+                        <i class="fas fa-calendar-alt" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                        <p>Sélectionnez une campagne pour calculer les besoins</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="progressModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h2>Chargement...</h2>
+            <div id="progressStatus">Calcul des besoins...</div>
+            <div id="progressResult"></div>
+        </div>
+    </div>
+    
+    <script src="/js/layout.js"></script>
+    <script>
+        var campagnes = [];
+        var besoinsData = null;
+        
+        async function loadCampagnes() {
+            var response = await fetch('/api/campagnes');
+            campagnes = await response.json();
+            
+            var select = document.getElementById('campagneSelect');
+            for (var i = 0; i < campagnes.length; i++) {
+                var c = campagnes[i];
+                select.innerHTML += `<option value="${c.id}">${c.annee} - ${c.saison}</option>`;
+            }
+        }
+        
+        async function loadBesoins() {
+            var campagneId = document.getElementById('campagneSelect').value;
+            if (!campagneId) return;
+            
+            var progressModal = document.getElementById('progressModal');
+            var progressStatus = document.getElementById('progressStatus');
+            progressModal.style.display = 'block';
+            progressStatus.innerText = 'Calcul des besoins...';
+            
+            try {
+                var response = await fetch('/api/distribution/besoins/' + campagneId);
+                besoinsData = await response.json();
+                
+                progressModal.style.display = 'none';
+                displayBesoins();
+            } catch (error) {
+                progressModal.style.display = 'none';
+                console.error('Erreur:', error);
+                document.getElementById('distribution-content').innerHTML = '<div class="empty-state">❌ Erreur lors du calcul des besoins</div>';
+            }
+        }
+        
+        function displayBesoins() {
+            var container = document.getElementById('distribution-content');
+            
+            var date = new Date().toLocaleDateString('fr-FR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            
+            var html = `
+                <div class="distribution-header">
+                    <div>
+                        <span class="date-badge">📅 Distribution prévue le ${date}</span>
+                        <span style="margin-left: 1rem;">👨‍👩‍👧‍👦 ${besoinsData.familles} familles</span>
+                    </div>
+                    <div>
+                        <button class="btn-generer" onclick="genererFeuilles()">
+                            <i class="fas fa-print"></i> Générer les feuilles
+                        </button>
+                    </div>
+                </div>
+                
+                <h3 style="margin-bottom: 1rem;">📊 Besoins totaux (en points)</h3>
+                <div class="besoins-grid">
+                    <div class="besoin-card">
+                        <div class="value">${besoinsData.besoins.protides}</div>
+                        <div class="label">🥩 Protides</div>
+                    </div>
+                    <div class="besoin-card">
+                        <div class="value">${besoinsData.besoins.accompagnement}</div>
+                        <div class="label">🥕 Accompagnement</div>
+                    </div>
+                    <div class="besoin-card">
+                        <div class="value">${besoinsData.besoins.laitier}</div>
+                        <div class="label">🥛 Laitier</div>
+                    </div>
+                    <div class="besoin-card">
+                        <div class="value">${besoinsData.besoins.dessert}</div>
+                        <div class="label">🍰 Dessert</div>
+                    </div>
+                </div>
+                
+                <h3 style="margin-bottom: 1rem;">📍 Répartition par emplacement</h3>
+                <div class="emplacements-grid" id="emplacements-grid">
+                    ${genererEmplacements()}
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        function genererEmplacements() {
+            // Cette fonction sera améliorée quand on aura les produits par emplacement
+            var emplacements = [
+                { nom: '🏪 Ambiant 1', description: 'Produits secs, conserves, féculents' },
+                { nom: '🏪 Ambiant 2', description: 'Produits secs, desserts, fruits' },
+                { nom: '🇪🇺 CE 1', description: 'Dons Europe - Produits divers' },
+                { nom: '🇪🇺 CE 2', description: 'Dons Europe - Produits divers' },
+                { nom: '❄️ Frigo 1', description: 'Viandes, poissons surgelés' },
+                { nom: '❄️ Frigo 2', description: 'Légumes surgelés' },
+                { nom: '❄️ Frigo 3', description: 'Plats mixte surgelés' },
+                { nom: '❄️ Frigo 4', description: 'Compléments surgelés' },
+                { nom: '❄️ Frigo 5', description: 'Légumes frais' },
+                { nom: '❄️ Frigo 6', description: 'Produits laitiers frais' },
+                { nom: '❄️ Frigo 7', description: 'Œufs, beurre' },
+                { nom: '🧼 Hygiène', description: 'Produits d\'hygiène, bébé' }
+            ];
+            
+            var html = '';
+            for (var i = 0; i < emplacements.length; i++) {
+                var e = emplacements[i];
+                html += `
+                    <div class="emplacement-card">
+                        <h3>${e.nom}</h3>
+                        <p style="font-size: 0.7rem; color: var(--text-secondary);">${e.description}</p>
+                        <div class="produit-liste">
+                            <div class="produit-item">
+                                <span>📦 Produits à prévoir</span>
+                                <span>À venir</span>
+                            </div>
+                        </div>
+                        <button class="btn-imprimer" onclick="imprimerEmplacement('${e.nom}')">
+                            <i class="fas fa-print"></i> Imprimer la feuille
+                        </button>
+                    </div>
+                `;
+            }
+            return html;
+        }
+        
+        function genererFeuilles() {
+            alert('Fonctionnalité à venir : génération des feuilles de distribution par emplacement');
+            // TODO: Implémenter la génération des feuilles avec les produits
+        }
+        
+        function imprimerEmplacement(nom) {
+            alert('Fonctionnalité à venir : impression de la feuille pour ' + nom);
+            // TODO: Implémenter l'impression par emplacement
+        }
+        
+        loadCampagnes();
+    </script>
+</body>
+</html>

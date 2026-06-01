@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informations - Restos du Cœur</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .info-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .info-card {
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--restos-rose);
+        }
+        
+        .info-card h3 {
+            color: var(--restos-rose);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        
+        .info-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .info-list li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .info-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .info-list li:before {
+            content: "📍";
+            position: absolute;
+            left: 0;
+            color: var(--restos-rose);
+        }
+        
+        .schedule-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .schedule-day {
+            font-weight: 600;
+            color: var(--restos-rose);
+        }
+        
+        .news-item {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .news-title {
+            font-weight: 700;
+            color: var(--restos-rose);
+            margin-bottom: 0.25rem;
+        }
+        
+        .news-date {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .info-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/images/logo.png" alt="Restos du Cœur" onerror="this.style.display='none'">
+                <h2>Restos du Cœur</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Accueil</span>
+                </a>
+                <a href="/informations" class="nav-item active">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Informations</span>
+                </a>
+                <a href="/login.html" class="nav-item" id="auth-link">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Connexion</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="nav-item" onclick="logout()" style="display: none;" id="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="profile-menu">
+                    <div class="profile-avatar" onclick="toggleProfileMenu()">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="dropdown-item" id="userName">Chargement...</div>
+                        <div class="dropdown-item" id="userEmail" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profil.html" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Mon profil
+                        </a>
+                        <div class="dropdown-item">
+                            <i class="fas fa-moon"></i> Mode sombre
+                            <label class="switch">
+                                <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Déconnexion
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>ℹ️ Informations pratiques</h2>
+                
+                <div class="info-section">
+                    <div class="info-card">
+                        <h3><i class="fas fa-clock"></i> Horaires d'ouverture</h3>
+                        <div class="schedule-item">
+                            <span class="schedule-day">Lundi</span>
+                            <span>14h00 - 17h00</span>
+                        </div>
+                        <div class="schedule-item">
+                            <span class="schedule-day">Mercredi</span>
+                            <span>14h00 - 17h00</span>
+                        </div>
+                        <div class="schedule-item">
+                            <span class="schedule-day">Vendredi</span>
+                            <span>14h00 - 17h00</span>
+                        </div>
+                        <div class="schedule-item">
+                            <span class="schedule-day">Accueil téléphonique</span>
+                            <span>09 70 21 10 10</span>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card">
+                        <h3><i class="fas fa-map-marker-alt"></i> Adresse</h3>
+                        <p>Centre d'activités<br>
+                        123 rue de l'Entraide<br>
+                        75000 Paris</p>
+                        <p><strong>Accès :</strong> Métro ligne 7, sortie "Solidarité"</p>
+                    </div>
+                    
+                    <div class="info-card">
+                        <h3><i class="fas fa-file-alt"></i> Documents nécessaires</h3>
+                        <ul class="info-list">
+                            <li>Pièce d'identité</li>
+                            <li>Justificatif de domicile</li>
+                            <li>Dernier avis d'imposition</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>📰 Actualités et événements</h2>
+                <div id="news-container">
+                    <div class="loading">Chargement...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/layout.js"></script>
+    <script>
+        async function loadNews() {
+            try {
+                var response = await fetch('/api/messages');
+                var messages = await response.json();
+                var container = document.getElementById('news-container');
+                
+                if (messages.length === 0) {
+                    container.innerHTML = '<div class="alert alert-info">Aucune actualité pour le moment.</div>';
+                    return;
+                }
+                
+                var html = '';
+                for (var i = 0; i < messages.length; i++) {
+                    var msg = messages[i];
+                    html += `
+                        <div class="news-item">
+                            <div class="news-title">${escapeHtml(msg.titre)}</div>
+                            <div class="news-date">📅 Publié le ${new Date(msg.created_at).toLocaleDateString('fr-FR')}</div>
+                            <p>${escapeHtml(msg.contenu)}</p>
+                            ${msg.image_url ? `<div><img src="${msg.image_url}" style="max-width: 100%; max-height: 200px; border-radius: 12px; margin-top: 0.5rem;"></div>` : ''}
+                        </div>
+                    `;
+                }
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        async function checkAuth() {
+            try {
+                var response = await fetch('/api/check-auth');
+                var data = await response.json();
+                var authLink = document.getElementById('auth-link');
+                var logoutBtn = document.getElementById('logout-btn');
+                
+                if (data.isAuthenticated) {
+                    authLink.style.display = 'none';
+                    logoutBtn.style.display = 'flex';
+                    document.getElementById('userName').innerHTML = (data.user.prenom || '') + ' ' + (data.user.nom || '');
+                    document.getElementById('userEmail').innerHTML = data.user.email || '';
+                } else {
+                    authLink.style.display = 'flex';
+                    logoutBtn.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        loadNews();
+        checkAuth();
+    </script>
+</body>
+</html>

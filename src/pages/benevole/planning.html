@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning - Espace Bénévole</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .planning-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .creneau-card {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 1.2rem;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--restos-rose);
+            transition: all 0.2s ease;
+        }
+        
+        .creneau-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateX(3px);
+        }
+        
+        .creneau-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .creneau-date {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--restos-rose);
+        }
+        
+        .creneau-heure {
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        
+        .creneau-type {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: var(--restos-rose);
+            color: white;
+        }
+        
+        .creneau-places {
+            font-size: 0.9rem;
+        }
+        
+        .creneau-places.disponible {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .creneau-places.complet {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .creneau-places.inscrit {
+            color: var(--restos-rose);
+            font-weight: 600;
+        }
+        
+        .btn-inscrire {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.5rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-inscrire:hover {
+            background: var(--restos-rose-fonce);
+            transform: translateY(-1px);
+        }
+        
+        .btn-desinscrire {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-desinscrire:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+        }
+        
+        .tab.active {
+            color: var(--restos-rose);
+            border-bottom: 2px solid var(--restos-rose);
+            margin-bottom: -2px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            border-radius: 16px;
+        }
+        
+        .stats-planning {
+            background: linear-gradient(135deg, var(--restos-rose) 0%, var(--restos-rose-fonce) 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-planning {
+                flex-direction: column;
+                text-align: center;
+            }
+            .creneau-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/images/logo.png" alt="Restos du Cœur" onerror="this.style.display='none'">
+                <h2>Restos du Cœur</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="nav-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="profile-menu">
+                    <div class="profile-avatar" onclick="toggleProfileMenu()">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="dropdown-item" id="userName">Chargement...</div>
+                        <div class="dropdown-item" id="userEmail" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profil.html" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Mon profil
+                        </a>
+                        <div class="dropdown-item">
+                            <i class="fas fa-moon"></i> Mode sombre
+                            <label class="switch">
+                                <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Déconnexion
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>📅 Planning des missions</h2>
+                <p>Inscrivez-vous aux créneaux de votre choix</p>
+                
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('a-venir')">📋 À venir</button>
+                    <button class="tab" onclick="showTab('passe')">📜 Historique</button>
+                </div>
+                
+                <div id="a-venir" class="planning-container"></div>
+                <div id="passe" class="planning-container" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="progressModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h2>Chargement...</h2>
+            <div id="progressStatus">Traitement en cours...</div>
+            <div id="progressResult"></div>
+        </div>
+    </div>
+    
+    <script src="/js/layout.js"></script>
+    <script>
+        var creneaux = [];
+        
+        async function loadCreneaux() {
+            try {
+                var response = await fetch('/api/creneaux');
+                creneaux = await response.json();
+                displayCreneaux();
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        async function loadHistorique() {
+            try {
+                var response = await fetch('/api/creneaux/passes');
+                var historique = await response.json();
+                displayHistorique(historique);
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        function displayCreneaux() {
+            var container = document.getElementById('a-venir');
+            
+            if (creneaux.length === 0) {
+                container.innerHTML = '<div class="empty-state">📭 Aucun créneau à venir pour le moment</div>';
+                return;
+            }
+            
+            var html = '';
+            for (var i = 0; i < creneaux.length; i++) {
+                var c = creneaux[i];
+                var placesDisponibles = c.places_total - (c.places_prises || 0);
+                var estInscrit = c.mon_statut === 'inscrit';
+                var estComplet = placesDisponibles <= 0;
+                var date = new Date(c.date_creneau).toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                
+                var placesClass = '';
+                var placesText = '';
+                if (estInscrit) {
+                    placesClass = 'inscrit';
+                    placesText = '✅ Vous êtes inscrit';
+                } else if (estComplet) {
+                    placesClass = 'complet';
+                    placesText = '❌ Complet';
+                } else {
+                    placesClass = 'disponible';
+                    placesText = `${placesDisponibles} place${placesDisponibles > 1 ? 's' : ''} disponible${placesDisponibles > 1 ? 's' : ''}`;
+                }
+                
+                html += `
+                    <div class="creneau-card">
+                        <div class="creneau-header">
+                            <div>
+                                <span class="creneau-date">📅 ${date}</span>
+                                <span class="creneau-heure">⏰ ${c.heure_debut} - ${c.heure_fin}</span>
+                            </div>
+                            <span class="creneau-type">${getTypeLabel(c.type_activite)}</span>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div class="creneau-places ${placesClass}">⭐ ${placesText}</div>
+                            ${c.description ? `<div style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.85rem;">📝 ${escapeHtml(c.description)}</div>` : ''}
+                        </div>
+                        <div style="display: flex; justify-content: flex-end;">
+                            ${estInscrit ? 
+                                `<button class="btn-desinscrire" onclick="desinscrire(${c.id})">❌ Se désinscrire</button>` :
+                                (!estComplet ? `<button class="btn-inscrire" onclick="inscrire(${c.id})">✅ S'inscrire</button>` : '')
+                            }
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+        
+        function displayHistorique(historique) {
+            var container = document.getElementById('passe');
+            
+            if (historique.length === 0) {
+                container.innerHTML = '<div class="empty-state">📭 Aucun historique</div>';
+                return;
+            }
+            
+            var html = '';
+            for (var i = 0; i < historique.length; i++) {
+                var h = historique[i];
+                var date = new Date(h.date_creneau).toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                
+                var statutText = h.statut === 'present' ? '✅ Présent' : (h.statut === 'absent' ? '❌ Absent' : '📝 Inscrit');
+                var statutClass = h.statut === 'present' ? 'disponible' : (h.statut === 'absent' ? 'complet' : 'inscrit');
+                
+                html += `
+                    <div class="creneau-card">
+                        <div class="creneau-header">
+                            <div>
+                                <span class="creneau-date">📅 ${date}</span>
+                                <span class="creneau-heure">⏰ ${h.heure_debut} - ${h.heure_fin}</span>
+                            </div>
+                            <span class="creneau-type">${getTypeLabel(h.type_activite)}</span>
+                        </div>
+                        <div style="margin-top: 0.5rem;">
+                            <span class="creneau-places ${statutClass}">${statutText}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+        
+        async function inscrire(creneauId) {
+            var progressModal = document.getElementById('progressModal');
+            var progressStatus = document.getElementById('progressStatus');
+            progressModal.style.display = 'block';
+            progressStatus.innerText = 'Inscription en cours...';
+            
+            try {
+                var response = await fetch('/api/inscriptions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ creneau_id: creneauId })
+                });
+                
+                progressModal.style.display = 'none';
+                
+                if (response.ok) {
+                    loadCreneaux();
+                } else {
+                    var error = await response.json();
+                    alert('Erreur: ' + error.error);
+                }
+            } catch (error) {
+                progressModal.style.display = 'none';
+                console.error('Erreur:', error);
+                alert('Erreur lors de l\'inscription');
+            }
+        }
+        
+        async function desinscrire(creneauId) {
+            if (confirm('Voulez-vous vraiment vous désinscrire ?')) {
+                var progressModal = document.getElementById('progressModal');
+                var progressStatus = document.getElementById('progressStatus');
+                progressModal.style.display = 'block';
+                progressStatus.innerText = 'Désinscription en cours...';
+                
+                try {
+                    var response = await fetch(`/api/inscriptions/${creneauId}`, { method: 'DELETE' });
+                    progressModal.style.display = 'none';
+                    
+                    if (response.ok) {
+                        loadCreneaux();
+                    } else {
+                        alert('Erreur lors de la désinscription');
+                    }
+                } catch (error) {
+                    progressModal.style.display = 'none';
+                    console.error('Erreur:', error);
+                }
+            }
+        }
+        
+        function getTypeLabel(type) {
+            var types = {
+                'distribution': '🍽️ Distribution',
+                'preparation': '🍳 Préparation des repas',
+                'tri': '📦 Tri des dons',
+                'livraison': '🚚 Livraison',
+                'administration': '📋 Administrative'
+            };
+            return types[type] || type;
+        }
+        
+        function showTab(tab) {
+            document.querySelectorAll('.tab').forEach(function(t) {
+                t.classList.remove('active');
+            });
+            document.querySelector(`.tab[onclick="showTab('${tab}')"]`).classList.add('active');
+            
+            document.getElementById('a-venir').style.display = tab === 'a-venir' ? 'block' : 'none';
+            document.getElementById('passe').style.display = tab === 'passe' ? 'block' : 'none';
+            
+            if (tab === 'passe') {
+                loadHistorique();
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        loadCreneaux();
+    </script>
+</body>
+</html>

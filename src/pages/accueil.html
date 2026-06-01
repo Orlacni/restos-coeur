@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restos du Cœur - Accueil</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .hero {
+            background: linear-gradient(135deg, rgba(203,0,107,0.92) 0%, rgba(158,0,83,0.92) 100%), 
+                        url('https://www.restosducoeur.org/wp-content/uploads/2021/10/accueil-bandeau-2.jpg');
+            background-size: cover;
+            background-position: center;
+            border-radius: 24px;
+            padding: 3rem 2rem;
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .hero h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .hero p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+        }
+        
+        .messages-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .message-item {
+            background: var(--bg-tertiary);
+            border-left: 4px solid var(--restos-rose);
+            padding: 1rem;
+            border-radius: 12px;
+        }
+        
+        .message-item h3 {
+            color: var(--restos-rose);
+            margin-bottom: 0.5rem;
+        }
+        
+        .message-date {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .message-image img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 12px;
+            margin-top: 0.75rem;
+        }
+        
+        .distributions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .distribution-card {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s ease;
+        }
+        
+        .distribution-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .distribution-card h3 {
+            color: var(--restos-rose);
+            margin-bottom: 0.5rem;
+        }
+        
+        .distribution-date {
+            background: var(--restos-rose);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            display: inline-block;
+            font-size: 0.8rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .info-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .info-list li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+        
+        .info-list li:before {
+            content: "❤️";
+            position: absolute;
+            left: 0;
+            color: var(--restos-rose);
+        }
+        
+        @media (max-width: 768px) {
+            .hero h2 {
+                font-size: 1.5rem;
+            }
+            .hero p {
+                font-size: 1rem;
+            }
+            .distributions-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/images/logo.png" alt="Restos du Cœur" onerror="this.style.display='none'">
+                <h2>Restos du Cœur</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Accueil</span>
+                </a>
+                <a href="/informations" class="nav-item">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Informations</span>
+                </a>
+                <a href="/login.html" class="nav-item" id="auth-link">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Connexion</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="nav-item" onclick="logout()" style="display: none;" id="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="profile-menu">
+                    <div class="profile-avatar" onclick="toggleProfileMenu()">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="dropdown-item" id="userName">Chargement...</div>
+                        <div class="dropdown-item" id="userEmail" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profil.html" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Mon profil
+                        </a>
+                        <div class="dropdown-item">
+                            <i class="fas fa-moon"></i> Mode sombre
+                            <label class="switch">
+                                <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Déconnexion
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="hero">
+                <h2>Ensemble, luttons contre la précarité</h2>
+                <p>Depuis 1985, les Restos du Cœur agissent pour aider les plus démunis</p>
+            </div>
+            
+            <div class="card">
+                <h2>📢 Dernières informations</h2>
+                <div id="messages-container">
+                    <div class="loading">Chargement...</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>📅 Prochaines distributions</h2>
+                <div id="distributions-container">
+                    <div class="loading">Chargement...</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>💚 Comment nous aider ?</h2>
+                <ul class="info-list">
+                    <li>Faire un don financier</li>
+                    <li>Devenir bénévole</li>
+                    <li>Donner des denrées non périssables</li>
+                    <li>Participer à nos collectes</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/layout.js"></script>
+    <script>
+        async function loadMessages() {
+            try {
+                var response = await fetch('/api/messages');
+                var messages = await response.json();
+                var container = document.getElementById('messages-container');
+                
+                var infos = messages.filter(function(m) { return m.type !== 'distribution'; });
+                
+                if (infos.length === 0) {
+                    container.innerHTML = '<div class="alert alert-info">Aucune information pour le moment.</div>';
+                    return;
+                }
+                
+                var html = '<div class="messages-grid">';
+                for (var i = 0; i < infos.length; i++) {
+                    var msg = infos[i];
+                    html += `
+                        <div class="message-item">
+                            <h3>${escapeHtml(msg.titre)}</h3>
+                            <div class="message-date">📅 ${new Date(msg.created_at).toLocaleDateString('fr-FR')}</div>
+                            <p>${escapeHtml(msg.contenu)}</p>
+                            ${msg.image_url ? `<div class="message-image"><img src="${msg.image_url}" alt="Image"></div>` : ''}
+                        </div>
+                    `;
+                }
+                html += '</div>';
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('messages-container').innerHTML = '<div class="alert alert-error">Erreur de chargement</div>';
+            }
+        }
+        
+        async function loadDistributions() {
+            try {
+                var response = await fetch('/api/distributions');
+                var distributions = await response.json();
+                var container = document.getElementById('distributions-container');
+                
+                if (distributions.length === 0) {
+                    container.innerHTML = '<div class="alert alert-info">Aucune date de distribution pour le moment.</div>';
+                    return;
+                }
+                
+                var html = '<div class="distributions-grid">';
+                for (var i = 0; i < distributions.length; i++) {
+                    var dist = distributions[i];
+                    html += `
+                        <div class="distribution-card">
+                            <h3>${escapeHtml(dist.titre)}</h3>
+                            <div class="distribution-date">📅 ${new Date(dist.date_distribution).toLocaleDateString('fr-FR')}</div>
+                            <p>${escapeHtml(dist.contenu)}</p>
+                        </div>
+                    `;
+                }
+                html += '</div>';
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        async function checkAuth() {
+            try {
+                var response = await fetch('/api/check-auth');
+                var data = await response.json();
+                var authLink = document.getElementById('auth-link');
+                var logoutBtn = document.getElementById('logout-btn');
+                
+                if (data.isAuthenticated) {
+                    authLink.style.display = 'none';
+                    logoutBtn.style.display = 'flex';
+                    document.getElementById('userName').innerHTML = (data.user.prenom || '') + ' ' + (data.user.nom || '');
+                    document.getElementById('userEmail').innerHTML = data.user.email || '';
+                } else {
+                    authLink.style.display = 'flex';
+                    logoutBtn.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        loadMessages();
+        loadDistributions();
+        checkAuth();
+    </script>
+</body>
+</html>

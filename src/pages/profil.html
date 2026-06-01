@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon profil - Restos du Cœur</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .profil-container {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .avatar-panel {
+            width: 280px;
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            text-align: center;
+            height: fit-content;
+        }
+        
+        .avatar-preview {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: var(--restos-rose);
+            margin: 0 auto 1rem auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .avatar-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .avatar-upload {
+            margin-top: 1rem;
+        }
+        
+        .avatar-upload input {
+            display: none;
+        }
+        
+        .avatar-upload label {
+            background: var(--restos-rose);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+        
+        .avatar-upload label:hover {
+            background: var(--restos-rose-fonce);
+            transform: translateY(-1px);
+        }
+        
+        .btn-save-avatar {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            width: 100%;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-save-avatar:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+        
+        .btn-save-avatar:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .info-panel {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .info-card {
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .info-card h3 {
+            color: var(--restos-rose);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            border-bottom: 2px solid var(--restos-rose);
+            padding-bottom: 0.5rem;
+            display: inline-block;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .card-header h3 {
+            margin-bottom: 0;
+        }
+        
+        .btn-edit-header {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.4rem 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-edit-header:hover {
+            background: var(--restos-rose-fonce);
+            transform: translateY(-1px);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: var(--restos-rose);
+            font-size: 0.9rem;
+        }
+        
+        .info-value {
+            color: var(--text-primary);
+        }
+        
+        .edit-mode {
+            display: none;
+        }
+        
+        .edit-mode.show {
+            display: block;
+        }
+        
+        .view-mode {
+            display: block;
+        }
+        
+        .view-mode.hide {
+            display: none;
+        }
+        
+        .btn-save {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-save:hover, .btn-cancel:hover {
+            transform: translateY(-1px);
+        }
+        
+        .btn-save:hover {
+            background: var(--restos-rose-fonce);
+        }
+        
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
+        
+        .alert {
+            padding: 0.75rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .avatar-preview-pending {
+            border: 3px solid #28a745;
+        }
+        
+        @media (max-width: 768px) {
+            .profil-container {
+                flex-direction: column;
+            }
+            .avatar-panel {
+                width: 100%;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/images/logo.png" alt="Restos du Cœur" onerror="this.style.display='none'">
+                <h2>Restos du Cœur</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="nav-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="profile-menu">
+                    <div class="profile-avatar" onclick="toggleProfileMenu()">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="dropdown-item" id="userName">Chargement...</div>
+                        <div class="dropdown-item" id="userEmail" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profil.html" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Mon profil
+                        </a>
+                        <div class="dropdown-item">
+                            <i class="fas fa-moon"></i> Mode sombre
+                            <label class="switch">
+                                <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Déconnexion
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="profil-container">
+                <!-- Panneau avatar -->
+                <div class="avatar-panel">
+                    <h3><i class="fas fa-camera"></i> Photo de profil</h3>
+                    <div class="avatar-preview" id="avatarPreview">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="avatar-upload">
+                        <input type="file" id="avatarInput" accept="image/*">
+                        <label for="avatarInput">
+                            <i class="fas fa-upload"></i> Choisir une photo
+                        </label>
+                    </div>
+                    <button id="saveAvatarBtn" class="btn-save-avatar" onclick="saveAvatar()" disabled>
+                        <i class="fas fa-save"></i> Sauvegarder la photo
+                    </button>
+                    <p class="small-text" style="margin-top: 1rem;">Formats acceptés : JPG, PNG, GIF (max 5 Mo)</p>
+                </div>
+                
+                <!-- Panneau informations -->
+                <div class="info-panel">
+                    <!-- Message d'alerte -->
+                    <div id="alertMessage" style="display: none;"></div>
+                    
+                    <!-- Informations personnelles -->
+                    <div class="info-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-user"></i> Informations personnelles</h3>
+                            <button id="editModeBtn" class="btn-edit-header" onclick="toggleEditMode()">
+                                <i class="fas fa-pencil-alt"></i> Modifier
+                            </button>
+                        </div>
+                        
+                        <!-- Mode affichage -->
+                        <div id="viewMode">
+                            <div class="info-row">
+                                <span class="info-label">📧 Email</span>
+                                <span class="info-value" id="viewEmail">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">👤 Nom</span>
+                                <span class="info-value" id="viewNom">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">👤 Prénom</span>
+                                <span class="info-value" id="viewPrenom">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">📞 Téléphone</span>
+                                <span class="info-value" id="viewTelephone">Non renseigné</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">🎂 Âge</span>
+                                <span class="info-value" id="viewAge">Non renseigné</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Mode édition -->
+                        <div id="editMode" class="edit-mode">
+                            <div class="form-group">
+                                <label>Nom</label>
+                                <input type="text" id="editNom" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Prénom</label>
+                                <input type="text" id="editPrenom" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Téléphone</label>
+                                <input type="tel" id="editTelephone" class="form-control" placeholder="Optionnel">
+                            </div>
+                            <div class="form-group">
+                                <label>Âge</label>
+                                <input type="number" id="editAge" class="form-control" placeholder="Optionnel" min="0" max="120">
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                                <button onclick="saveProfile()" class="btn-save">💾 Enregistrer</button>
+                                <button onclick="toggleEditMode()" class="btn-cancel">Annuler</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Changer le mot de passe -->
+                    <div class="info-card">
+                        <h3><i class="fas fa-key"></i> Changer le mot de passe</h3>
+                        
+                        <div class="form-group">
+                            <label>Mot de passe actuel</label>
+                            <input type="password" id="currentPassword" class="form-control" placeholder="Requis pour modifier">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Nouveau mot de passe</label>
+                                <input type="password" id="newPassword" class="form-control" placeholder="Laissez vide pour ne pas changer">
+                            </div>
+                            <div class="form-group">
+                                <label>Confirmer le nouveau mot de passe</label>
+                                <input type="password" id="confirmPassword" class="form-control" placeholder="">
+                            </div>
+                        </div>
+                        <button onclick="changePassword()" class="btn-save">🔐 Changer le mot de passe</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/layout.js"></script>
+    <script>
+        var userData = {};
+        var pendingAvatarFile = null;
+        var pendingAvatarPreview = null;
+        
+        async function loadProfile() {
+            try {
+                var response = await fetch('/api/user/profile');
+                userData = await response.json();
+                
+                console.log('Données reçues:', userData);
+                
+                // Afficher les données en mode vue
+                document.getElementById('viewEmail').innerText = userData.email || '-';
+                document.getElementById('viewNom').innerText = userData.nom || '-';
+                document.getElementById('viewPrenom').innerText = userData.prenom || '-';
+                document.getElementById('viewTelephone').innerText = userData.telephone || 'Non renseigné';
+                document.getElementById('viewAge').innerText = userData.age ? userData.age + ' ans' : 'Non renseigné';
+                
+                // Pré-remplir le formulaire d'édition
+                document.getElementById('editNom').value = userData.nom || '';
+                document.getElementById('editPrenom').value = userData.prenom || '';
+                document.getElementById('editTelephone').value = userData.telephone || '';
+                document.getElementById('editAge').value = userData.age || '';
+                
+                // Afficher l'avatar sauvegardé
+                if (userData.avatar) {
+                    document.getElementById('avatarPreview').innerHTML = `<img src="${userData.avatar}?t=${Date.now()}" alt="Avatar">`;
+                } else {
+                    var initials = (userData.prenom ? userData.prenom.charAt(0) : '') + (userData.nom ? userData.nom.charAt(0) : '');
+                    if (initials) {
+                        document.getElementById('avatarPreview').innerHTML = `<span style="font-size: 2rem; font-weight: 600;">${initials.toUpperCase()}</span>`;
+                    } else {
+                        document.getElementById('avatarPreview').innerHTML = '<i class="fas fa-user"></i>';
+                    }
+                }
+                
+                // Réinitialiser l'état de l'avatar en attente
+                pendingAvatarFile = null;
+                pendingAvatarPreview = null;
+                document.getElementById('saveAvatarBtn').disabled = true;
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('Erreur lors du chargement du profil', 'error');
+            }
+        }
+        
+        // Avatar upload - prévisualisation seulement, pas de sauvegarde immédiate
+        document.getElementById('avatarInput').addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (file) {
+                // Vérifier la taille (max 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    showAlert('La photo est trop volumineuse (max 5 Mo)', 'error');
+                    this.value = '';
+                    return;
+                }
+                
+                // Vérifier le type
+                if (!file.type.match('image.*')) {
+                    showAlert('Veuillez sélectionner une image (JPG, PNG, GIF)', 'error');
+                    this.value = '';
+                    return;
+                }
+                
+                pendingAvatarFile = file;
+                
+                var reader = new FileReader();
+                reader.onload = function(event) {
+                    pendingAvatarPreview = event.target.result;
+                    var previewDiv = document.getElementById('avatarPreview');
+                    previewDiv.innerHTML = `<img src="${event.target.result}" alt="Aperçu" style="border: 3px solid #28a745;">`;
+                    previewDiv.classList.add('avatar-preview-pending');
+                    document.getElementById('saveAvatarBtn').disabled = false;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                pendingAvatarFile = null;
+                pendingAvatarPreview = null;
+                document.getElementById('saveAvatarBtn').disabled = true;
+                // Restaurer l'avatar original
+                if (userData.avatar) {
+                    document.getElementById('avatarPreview').innerHTML = `<img src="${userData.avatar}" alt="Avatar">`;
+                } else {
+                    var initials = (userData.prenom ? userData.prenom.charAt(0) : '') + (userData.nom ? userData.nom.charAt(0) : '');
+                    if (initials) {
+                        document.getElementById('avatarPreview').innerHTML = `<span style="font-size: 2rem; font-weight: 600;">${initials.toUpperCase()}</span>`;
+                    } else {
+                        document.getElementById('avatarPreview').innerHTML = '<i class="fas fa-user"></i>';
+                    }
+                }
+                document.getElementById('avatarPreview').classList.remove('avatar-preview-pending');
+            }
+        });
+        
+        async function saveAvatar() {
+            if (!pendingAvatarFile) {
+                showAlert('Aucune photo sélectionnée', 'error');
+                return;
+            }
+            
+            var formData = new FormData();
+            formData.append('avatar', pendingAvatarFile);
+            
+            // Ajouter les infos existantes pour ne pas les perdre
+            formData.append('nom', userData.nom || '');
+            formData.append('prenom', userData.prenom || '');
+            formData.append('telephone', userData.telephone || '');
+            formData.append('age', userData.age || '');
+            
+            try {
+                var response = await fetch('/api/user/profile', {
+                    method: 'PUT',
+                    body: formData
+                });
+                
+                var result = await response.json();
+                console.log('Réponse sauvegarde avatar:', result);
+                
+                if (response.ok) {
+                    showAlert('Photo de profil mise à jour !', 'success');
+                    // Recharger le profil
+                    await loadProfile();
+                    // Recharger les infos dans le dropdown
+                    if (typeof loadUserInfo === 'function') {
+                        loadUserInfo();
+                    }
+                    // Réinitialiser
+                    document.getElementById('avatarInput').value = '';
+                    pendingAvatarFile = null;
+                    document.getElementById('saveAvatarBtn').disabled = true;
+                } else {
+                    showAlert(result.error || 'Erreur lors de la sauvegarde', 'error');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('Erreur lors de la sauvegarde', 'error');
+            }
+        }
+        
+        function toggleEditMode() {
+            var viewMode = document.getElementById('viewMode');
+            var editMode = document.getElementById('editMode');
+            var editBtn = document.getElementById('editModeBtn');
+            
+            if (editMode.classList.contains('show')) {
+                // Sortie du mode édition
+                viewMode.classList.remove('hide');
+                editMode.classList.remove('show');
+                editBtn.innerHTML = '<i class="fas fa-pencil-alt"></i> Modifier';
+            } else {
+                // Entrée en mode édition
+                viewMode.classList.add('hide');
+                editMode.classList.add('show');
+                editBtn.innerHTML = '<i class="fas fa-times"></i> Annuler';
+            }
+        }
+        
+        async function saveProfile() {
+            var formData = new FormData();
+            formData.append('nom', document.getElementById('editNom').value);
+            formData.append('prenom', document.getElementById('editPrenom').value);
+            formData.append('telephone', document.getElementById('editTelephone').value);
+            formData.append('age', document.getElementById('editAge').value);
+            
+            try {
+                var response = await fetch('/api/user/profile', {
+                    method: 'PUT',
+                    body: formData
+                });
+                
+                var result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('Profil mis à jour !', 'success');
+                    // Sortir du mode édition
+                    toggleEditMode();
+                    // Recharger les données
+                    await loadProfile();
+                    // Recharger les infos dans le dropdown
+                    if (typeof loadUserInfo === 'function') {
+                        loadUserInfo();
+                    }
+                } else {
+                    showAlert(result.error || 'Erreur lors de la mise à jour', 'error');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('Erreur lors de la mise à jour', 'error');
+            }
+        }
+        
+        async function changePassword() {
+            var currentPassword = document.getElementById('currentPassword').value;
+            var newPassword = document.getElementById('newPassword').value;
+            var confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (!currentPassword) {
+                showAlert('Veuillez entrer votre mot de passe actuel', 'error');
+                return;
+            }
+            
+            if (newPassword && newPassword !== confirmPassword) {
+                showAlert('Les nouveaux mots de passe ne correspondent pas', 'error');
+                return;
+            }
+            
+            if (newPassword && newPassword.length < 4) {
+                showAlert('Le nouveau mot de passe doit contenir au moins 4 caractères', 'error');
+                return;
+            }
+            
+            var formData = new FormData();
+            formData.append('old_password', currentPassword);
+            if (newPassword) {
+                formData.append('new_password', newPassword);
+            }
+            
+            try {
+                var response = await fetch('/api/user/profile', {
+                    method: 'PUT',
+                    body: formData
+                });
+                
+                var result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('Mot de passe modifié avec succès !', 'success');
+                    document.getElementById('currentPassword').value = '';
+                    document.getElementById('newPassword').value = '';
+                    document.getElementById('confirmPassword').value = '';
+                } else {
+                    showAlert(result.error || 'Erreur lors du changement de mot de passe', 'error');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('Erreur lors du changement de mot de passe', 'error');
+            }
+        }
+        
+        function showAlert(message, type) {
+            var alertDiv = document.getElementById('alertMessage');
+            alertDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            alertDiv.style.display = 'block';
+            
+            setTimeout(function() {
+                alertDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        loadProfile();
+    </script>
+</body>
+</html>

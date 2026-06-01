@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des utilisateurs - Restos du Cœur</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .users-container {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .users-list-panel {
+            flex: 2;
+            min-width: 300px;
+        }
+        
+        .roles-panel {
+            width: 320px;
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 1.2rem;
+            box-shadow: var(--shadow-sm);
+            height: fit-content;
+        }
+        
+        .roles-panel h3 {
+            color: var(--restos-rose);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            border-bottom: 2px solid var(--restos-rose);
+            padding-bottom: 0.5rem;
+        }
+        
+        .role-list {
+            list-style: none;
+            padding: 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .role-list li {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 12px;
+            background: var(--bg-tertiary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .role-list li:hover {
+            background: var(--restos-rose);
+            color: white;
+        }
+        
+        .role-list li.active {
+            background: var(--restos-rose);
+            color: white;
+        }
+        
+        .role-list li .role-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .role-list li .role-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: inherit;
+            font-size: 0.9rem;
+        }
+        
+        .btn-nouveau-role {
+            width: 100%;
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.6rem;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .search-bar {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .search-input {
+            flex: 2;
+            min-width: 200px;
+        }
+        
+        .search-input input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        
+        .stats-users {
+            background: linear-gradient(135deg, var(--restos-rose) 0%, var(--restos-rose-fonce) 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .user-card {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--restos-rose);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            transition: all 0.2s ease;
+        }
+        
+        .user-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateX(3px);
+        }
+        
+        .user-infos {
+            flex: 2;
+        }
+        
+        .user-name {
+            font-weight: 700;
+            color: var(--restos-rose);
+            font-size: 1rem;
+        }
+        
+        .user-details {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        
+        .user-role-badge {
+            background: var(--restos-rose);
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        
+        .user-status {
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: #28a745;
+            color: white;
+        }
+        
+        .status-inactive {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .user-actions button {
+            padding: 5px 10px;
+            margin-left: 0.25rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .btn-edit {
+            background: var(--restos-rose);
+            color: white;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            border-radius: 16px;
+        }
+        
+        .permissions-group {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .permissions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        
+        .permission-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .permission-item input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .permission-item label {
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .users-container {
+                flex-direction: column;
+            }
+            .roles-panel {
+                width: 100%;
+            }
+            .search-bar {
+                flex-direction: column;
+            }
+            .stats-users {
+                flex-direction: column;
+                text-align: center;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .btn-annuler {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .btn-ajouter {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/images/logo.png" alt="Restos du Cœur" onerror="this.style.display='none'">
+                <h2>Restos du Cœur</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="nav-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="profile-menu">
+                    <div class="profile-avatar" onclick="toggleProfileMenu()">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="dropdown-item" id="userName">Chargement...</div>
+                        <div class="dropdown-item" id="userEmail" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profil.html" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Mon profil
+                        </a>
+                        <div class="dropdown-item">
+                            <i class="fas fa-moon"></i> Mode sombre
+                            <label class="switch">
+                                <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Déconnexion
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>👥 Gestion des utilisateurs</h2>
+                
+                <div class="users-container">
+                    <div class="roles-panel">
+                        <h3><i class="fas fa-tags"></i> Rôles</h3>
+                        <div id="roles-list" class="role-list">
+                            <div class="loading">Chargement...</div>
+                        </div>
+                        <button class="btn-nouveau-role" onclick="showAddRoleModal()">
+                            <i class="fas fa-plus"></i> Nouveau rôle
+                        </button>
+                    </div>
+                    
+                    <div class="users-list-panel">
+                        <div id="users-container">
+                            <div class="empty-state">
+                                <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                                <p>Gérez les utilisateurs et leurs rôles</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal utilisateur -->
+    <div id="userModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 id="userModalTitle">Ajouter un utilisateur</h2>
+            <form id="userForm">
+                <input type="hidden" id="userId">
+                
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" id="email" class="form-control" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nom *</label>
+                        <input type="text" id="nom" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Prénom *</label>
+                        <input type="text" id="prenom" class="form-control" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Téléphone</label>
+                    <input type="tel" id="telephone" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label>Âge</label>
+                    <input type="number" id="age" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label>Rôle</label>
+                    <select id="role_id" class="form-control" required>
+                        <option value="2">Bénévole</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="password" id="password" class="form-control" placeholder="Requis pour un nouvel utilisateur">
+                </div>
+                <div class="form-group">
+                    <label>Confirmer le mot de passe</label>
+                    <input type="password" id="confirm_password" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label>Statut</label>
+                    <select id="actif" class="form-control">
+                        <option value="1">Actif</option>
+                        <option value="0">Inactif</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
+                    <button type="button" onclick="closeUserModal()" class="btn-annuler">Annuler</button>
+                    <button type="submit" class="btn-ajouter">💾 Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal rôle -->
+    <div id="roleModal" class="modal">
+        <div class="modal-content" style="max-width: 550px; max-height: 85vh; overflow-y: auto;">
+            <h2 id="roleModalTitle">Ajouter un rôle</h2>
+            <form id="roleForm">
+                <input type="hidden" id="roleId">
+                
+                <div class="form-group">
+                    <label>Nom du rôle *</label>
+                    <input type="text" id="roleNom" class="form-control" required placeholder="Ex: Gestionnaire, Distributeur...">
+                </div>
+                
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="roleDescription" class="form-control" rows="2" placeholder="Description du rôle..."></textarea>
+                </div>
+                
+                <div class="permissions-group">
+                    <strong><i class="fas fa-lock"></i> Permissions (onglets accessibles)</strong>
+                    <div class="permissions-grid" id="permissions-grid">
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
+                    <button type="button" onclick="closeRoleModal()" class="btn-annuler">Annuler</button>
+                    <button type="submit" class="btn-ajouter">💾 Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="progressModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h2>Chargement...</h2>
+            <div id="progressStatus">Traitement en cours...</div>
+            <div id="progressResult"></div>
+        </div>
+    </div>
+    
+    <script src="/js/layout.js"></script>
+    <script>
+        var users = [];
+        var roles = [];
+        
+        var availablePermissions = [
+            { id: 'dashboard', label: '📊 Dashboard' },
+            { id: 'communication', label: '📢 Communication' },
+            { id: 'planning', label: '📅 Planning' },
+            { id: 'livraisons', label: '🚚 Livraisons' },
+            { id: 'familles', label: '👨‍👩‍👧‍👦 Familles' },
+            { id: 'produits', label: '📦 Produits' },
+            { id: 'distribution', label: '🍽️ Distribution' },
+            { id: 'utilisateurs', label: '👥 Utilisateurs' },
+            { id: 'profil', label: '👤 Mon profil' }
+        ];
+        
+        async function loadUsers() {
+            var response = await fetch('/api/admin/users');
+            users = await response.json();
+            displayUsers();
+        }
+        
+        async function loadRoles() {
+            var response = await fetch('/api/admin/roles');
+            roles = await response.json();
+            displayRoles();
+            updateRoleSelect();
+            updatePermissionsGrid();
+        }
+        
+        function displayRoles() {
+            var container = document.getElementById('roles-list');
+            if (roles.length === 0) {
+                container.innerHTML = '<div class="empty-state" style="padding: 1rem;">Aucun rôle</div>';
+                return;
+            }
+            
+            var html = '';
+            for (var i = 0; i < roles.length; i++) {
+                var r = roles[i];
+                html += `
+                    <li>
+                        <span><i class="fas fa-tag"></i> ${escapeHtml(r.nom)}</span>
+                        <div class="role-actions">
+                            <button onclick="editRole(${r.id})" title="Modifier"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteRole(${r.id})" title="Supprimer"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </li>
+                `;
+            }
+            container.innerHTML = html;
+        }
+        
+        function updateRoleSelect() {
+            var select = document.getElementById('role_id');
+            select.innerHTML = '<option value="2">Bénévole</option>';
+            for (var i = 0; i < roles.length; i++) {
+                if (roles[i].id !== 1 && roles[i].id !== 2) {
+                    select.innerHTML += `<option value="${roles[i].id}">${escapeHtml(roles[i].nom)}</option>`;
+                }
+            }
+        }
+        
+        function updatePermissionsGrid() {
+            var container = document.getElementById('permissions-grid');
+            var html = '';
+            for (var i = 0; i < availablePermissions.length; i++) {
+                var p = availablePermissions[i];
+                html += `
+                    <div class="permission-item">
+                        <input type="checkbox" id="perm_${p.id}" value="${p.id}">
+                        <label for="perm_${p.id}">${p.label}</label>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+        
+        function displayUsers() {
+            var container = document.getElementById('users-container');
+            
+            var searchTerm = document.getElementById('searchInput') ? document.getElementById('searchInput').value : '';
+            var filtered = users;
+            if (searchTerm) {
+                var search = searchTerm.toLowerCase();
+                filtered = users.filter(function(u) {
+                    return (u.nom + ' ' + u.prenom).toLowerCase().includes(search) ||
+                           u.email.toLowerCase().includes(search);
+                });
+            }
+            
+            var statsHtml = `
+                <div class="stats-users">
+                    <div>
+                        <span><strong>👥 Total utilisateurs</strong></span>
+                        <span>${users.length}</span>
+                    </div>
+                    <div class="action-buttons">
+                        <button onclick="showAddUserModal()" class="btn-ajouter">
+                            <i class="fas fa-plus"></i> Ajouter
+                        </button>
+                    </div>
+                </div>
+                <div class="search-bar">
+                    <div class="search-input">
+                        <input type="text" id="searchInput" placeholder="🔍 Rechercher par nom, prénom ou email..." oninput="displayUsers()">
+                    </div>
+                </div>
+            `;
+            
+            if (filtered.length === 0) {
+                container.innerHTML = statsHtml + '<div class="empty-state">Aucun utilisateur trouvé</div>';
+                var searchInput = document.getElementById('searchInput');
+                if (searchInput) searchInput.value = searchTerm;
+                return;
+            }
+            
+            var html = statsHtml;
+            
+            for (var i = 0; i < filtered.length; i++) {
+                var u = filtered[i];
+                var roleName = 'Bénévole';
+                for (var j = 0; j < roles.length; j++) {
+                    if (roles[j].id === u.role_id) {
+                        roleName = roles[j].nom;
+                        break;
+                    }
+                }
+                
+                html += `
+                    <div class="user-card">
+                        <div class="user-infos">
+                            <div>
+                                <span class="user-name">${escapeHtml(u.prenom)} ${escapeHtml(u.nom)}</span>
+                                <span class="user-role-badge">${escapeHtml(roleName)}</span>
+                                <span class="user-status ${u.actif ? 'status-active' : 'status-inactive'}">${u.actif ? 'Actif' : 'Inactif'}</span>
+                            </div>
+                            <div class="user-details">
+                                <i class="fas fa-envelope"></i> ${escapeHtml(u.email)} |
+                                <i class="fas fa-phone"></i> ${u.telephone || '—'} |
+                                <i class="fas fa-calendar-alt"></i> ${u.age ? u.age + ' ans' : '—'}
+                            </div>
+                        </div>
+                        <div class="user-actions">
+                            <button onclick="editUser(${u.id})" class="btn-edit"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteUser(${u.id})" class="btn-delete"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+            
+            var searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.value = searchTerm;
+        }
+        
+        function showAddUserModal() {
+            console.log('Ouverture du modal ajout utilisateur');
+            document.getElementById('userModalTitle').textContent = 'Ajouter un utilisateur';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('actif').value = '1';
+            document.getElementById('password').required = true;
+            document.getElementById('password').placeholder = 'Mot de passe *';
+            document.getElementById('email').value = '';
+            document.getElementById('nom').value = '';
+            document.getElementById('prenom').value = '';
+            document.getElementById('userModal').style.display = 'block';
+        }
+        
+        async function editUser(id) {
+            var user = null;
+            for (var i = 0; i < users.length; i++) {
+                if (users[i].id === id) {
+                    user = users[i];
+                    break;
+                }
+            }
+            if (!user) return;
+            
+            document.getElementById('userModalTitle').textContent = 'Modifier l\'utilisateur';
+            document.getElementById('userId').value = user.id;
+            document.getElementById('email').value = user.email;
+            document.getElementById('nom').value = user.nom;
+            document.getElementById('prenom').value = user.prenom;
+            document.getElementById('telephone').value = user.telephone || '';
+            document.getElementById('age').value = user.age || '';
+            document.getElementById('role_id').value = user.role_id || '2';
+            document.getElementById('actif').value = user.actif ? '1' : '0';
+            document.getElementById('password').value = '';
+            document.getElementById('confirm_password').value = '';
+            document.getElementById('password').required = false;
+            document.getElementById('password').placeholder = 'Laissez vide pour ne pas modifier';
+            document.getElementById('userModal').style.display = 'block';
+        }
+        
+        async function deleteUser(id) {
+            if (confirm('Supprimer définitivement cet utilisateur ?')) {
+                var response = await fetch('/api/admin/users/' + id, { method: 'DELETE' });
+                if (response.ok) {
+                    loadUsers();
+                } else {
+                    alert('Erreur lors de la suppression');
+                }
+            }
+        }
+        
+        document.getElementById('userForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            console.log('=== SUBMIT FORMULAIRE ===');
+            
+            var id = document.getElementById('userId').value;
+            var email = document.getElementById('email').value;
+            var password = document.getElementById('password').value;
+            var confirmPassword = document.getElementById('confirm_password').value;
+            
+            console.log('ID:', id);
+            console.log('Email récupéré:', email);
+            console.log('Password présent:', password ? 'oui' : 'non');
+            
+            // Validation
+            if (!email || email.trim() === '') {
+                console.log('ERREUR: Email vide');
+                alert('L\'email est requis');
+                return;
+            }
+            
+            if (!id && (!password || password === '')) {
+                console.log('ERREUR: Mot de passe requis pour nouvel utilisateur');
+                alert('Le mot de passe est requis pour un nouvel utilisateur');
+                return;
+            }
+            
+            if (password && password !== confirmPassword) {
+                console.log('ERREUR: Mots de passe ne correspondent pas');
+                alert('Les mots de passe ne correspondent pas');
+                return;
+            }
+            
+            var data = {
+                email: email.trim(),
+                nom: document.getElementById('nom').value,
+                prenom: document.getElementById('prenom').value,
+                telephone: document.getElementById('telephone').value || null,
+                age: document.getElementById('age').value || null,
+                role_id: parseInt(document.getElementById('role_id').value) || 2,
+                actif: document.getElementById('actif').value === '1',
+                password: password || null
+            };
+            
+            console.log('Données envoyées:', data);
+            
+            var url = id ? '/api/admin/users/' + id : '/api/admin/users';
+            var method = id ? 'PUT' : 'POST';
+            
+            try {
+                var response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                console.log('Réponse status:', response.status);
+                
+                if (response.ok) {
+                    var result = await response.json();
+                    console.log('Succès:', result);
+                    closeUserModal();
+                    loadUsers();
+                } else {
+                    var error = await response.json();
+                    console.log('Erreur serveur:', error);
+                    alert('Erreur: ' + (error.error || 'Erreur lors de l\'enregistrement'));
+                }
+            } catch (error) {
+                console.error('Erreur fetch:', error);
+                alert('Erreur de connexion');
+            }
+        });
+        
+        function closeUserModal() {
+            document.getElementById('userModal').style.display = 'none';
+        }
+        
+        function showAddRoleModal() {
+            document.getElementById('roleModalTitle').textContent = 'Ajouter un rôle';
+            document.getElementById('roleForm').reset();
+            document.getElementById('roleId').value = '';
+            var checkboxes = document.querySelectorAll('#permissions-grid input[type="checkbox"]');
+            for (var i = 0; i < checkboxes.length; i++) {
+                checkboxes[i].checked = false;
+            }
+            document.getElementById('roleModal').style.display = 'block';
+        }
+        
+        async function editRole(id) {
+            var role = null;
+            for (var i = 0; i < roles.length; i++) {
+                if (roles[i].id === id) {
+                    role = roles[i];
+                    break;
+                }
+            }
+            if (!role) return;
+            
+            document.getElementById('roleModalTitle').textContent = 'Modifier le rôle';
+            document.getElementById('roleId').value = role.id;
+            document.getElementById('roleNom').value = role.nom;
+            document.getElementById('roleDescription').value = role.description || '';
+            
+            var checkboxes = document.querySelectorAll('#permissions-grid input[type="checkbox"]');
+            for (var i = 0; i < checkboxes.length; i++) {
+                checkboxes[i].checked = false;
+            }
+            
+            if (role.permissions) {
+                var perms = role.permissions.split(',');
+                for (var i = 0; i < perms.length; i++) {
+                    var cb = document.getElementById('perm_' + perms[i]);
+                    if (cb) cb.checked = true;
+                }
+            }
+            
+            document.getElementById('roleModal').style.display = 'block';
+        }
+        
+        async function deleteRole(id) {
+            var role = null;
+            for (var i = 0; i < roles.length; i++) {
+                if (roles[i].id === id) {
+                    role = roles[i];
+                    break;
+                }
+            }
+            if (confirm('Supprimer le rôle "' + role.nom + '" ? Les utilisateurs ayant ce rôle seront basculés vers "bénévole".')) {
+                var response = await fetch('/api/admin/roles/' + id, { method: 'DELETE' });
+                if (response.ok) {
+                    loadRoles();
+                    loadUsers();
+                } else {
+                    alert('Erreur lors de la suppression');
+                }
+            }
+        }
+        
+        document.getElementById('roleForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            var id = document.getElementById('roleId').value;
+            var permissions = [];
+            var checkboxes = document.querySelectorAll('#permissions-grid input[type="checkbox"]:checked');
+            for (var i = 0; i < checkboxes.length; i++) {
+                permissions.push(checkboxes[i].value);
+            }
+            
+            var data = {
+                nom: document.getElementById('roleNom').value,
+                description: document.getElementById('roleDescription').value,
+                permissions: permissions.join(',')
+            };
+            
+            var url = id ? '/api/admin/roles/' + id : '/api/admin/roles';
+            var method = id ? 'PUT' : 'POST';
+            
+            var response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                closeRoleModal();
+                loadRoles();
+                loadUsers();
+            } else {
+                var error = await response.json();
+                alert('Erreur: ' + (error.error || 'Erreur lors de l\'enregistrement'));
+            }
+        });
+        
+        function closeRoleModal() {
+            document.getElementById('roleModal').style.display = 'none';
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        loadUsers();
+        loadRoles();
+    </script>
+</body>
+</html>
