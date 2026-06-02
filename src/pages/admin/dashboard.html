@@ -6,18 +6,110 @@
     <title>Dashboard - Administration</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--restos-rose);
+            transition: transform 0.2s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .stat-card .stat-icon {
+            font-size: 2rem;
+            color: var(--restos-rose);
+            margin-bottom: 1rem;
+        }
+        
+        .stat-card .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--restos-rose);
+        }
+        
+        .stat-card .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .dashboard-card {
+            background: var(--bg-primary);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .dashboard-card h3 {
+            color: var(--restos-rose);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            border-bottom: 2px solid var(--restos-rose);
+            padding-bottom: 0.5rem;
+            display: inline-block;
+        }
+        
+        .recent-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .recent-item:last-child {
+            border-bottom: none;
+        }
+        
+        .recent-title {
+            font-weight: 600;
+            color: var(--restos-rose);
+        }
+        
+        .recent-date {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .warning-item {
+            color: #dc3545;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="app-container">
-        <!-- Sidebar (menu latéral) -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-logo">
                 <img src="/images/logo.png" alt="Restos du Cœur" onerror="this.style.display='none'">
                 <h2>Restos du Cœur</h2>
             </div>
-            <nav class="sidebar-nav">
-                <!-- Menu généré par JavaScript -->
-            </nav>
+            <nav class="sidebar-nav"></nav>
             <div class="sidebar-footer">
                 <div class="nav-item" onclick="logout()">
                     <i class="fas fa-sign-out-alt"></i>
@@ -26,7 +118,6 @@
             </div>
         </div>
         
-        <!-- Contenu principal -->
         <div class="main-content">
             <div class="top-bar">
                 <button class="menu-toggle" onclick="toggleMobileMenu()">
@@ -43,6 +134,9 @@
                         <a href="/profil.html" class="dropdown-item">
                             <i class="fas fa-user-circle"></i> Mon profil
                         </a>
+                        <div class="dropdown-item" onclick="refreshPermissions()">
+                            <i class="fas fa-sync-alt"></i> Recharger mes accès
+                        </div>
                         <div class="dropdown-item">
                             <i class="fas fa-moon"></i> Mode sombre
                             <label class="switch">
@@ -58,15 +152,219 @@
                 </div>
             </div>
             
-            <!-- Contenu spécifique à la page -->
-            <div class="card">
-                <h2>📊 Dashboard</h2>
-                <p>Bienvenue dans l'interface d'administration</p>
-                <!-- Contenu existant du dashboard -->
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                    <div class="stat-number" id="statsFamilles">0</div>
+                    <div class="stat-label">Familles inscrites</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-child"></i></div>
+                    <div class="stat-number" id="statsAdultes">0</div>
+                    <div class="stat-label">Adultes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-baby"></i></div>
+                    <div class="stat-number" id="statsBebes">0</div>
+                    <div class="stat-label">Bébés (0-36 mois)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+                    <div class="stat-number" id="statsMissions">0</div>
+                    <div class="stat-label">Missions à venir</div>
+                </div>
+            </div>
+            
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <h3><i class="fas fa-truck"></i> Dernières livraisons</h3>
+                    <div id="dernieresLivraisons">
+                        <div class="loading">Chargement...</div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Péremptions proches</h3>
+                    <div id="peremptionsProches">
+                        <div class="loading">Chargement...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="dashboard-grid" style="margin-top: 1.5rem;">
+                <div class="dashboard-card">
+                    <h3><i class="fas fa-calendar-week"></i> Prochaines distributions</h3>
+                    <div id="prochainesDistributions">
+                        <div class="loading">Chargement...</div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3><i class="fas fa-boxes"></i> Stock par catégorie</h3>
+                    <div id="stockCategories">
+                        <div class="loading">Chargement...</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     
     <script src="/js/layout.js"></script>
+    <script>
+        async function loadDashboard() {
+            try {
+                // Statistiques familles
+                const campagnesResponse = await fetch('/api/campagnes');
+                const campagnes = await campagnesResponse.json();
+                
+                if (campagnes.length > 0) {
+                    const campagneId = campagnes[0].id;
+                    const famillesResponse = await fetch('/api/familles/' + campagneId);
+                    const familles = await famillesResponse.json();
+                    
+                    let totalAdultes = 0;
+                    let totalBebes = 0;
+                    
+                    for (const f of familles) {
+                        totalAdultes += f.nb_adultes || 1;
+                        totalBebes += (f.enfants_0_6 || 0) + (f.enfants_6_12 || 0) + (f.enfants_12_18 || 0) + (f.enfants_18_36 || 0);
+                    }
+                    
+                    document.getElementById('statsFamilles').innerText = familles.length;
+                    document.getElementById('statsAdultes').innerText = totalAdultes;
+                    document.getElementById('statsBebes').innerText = totalBebes;
+                }
+                
+                // Missions
+                const creneauxResponse = await fetch('/api/creneaux');
+                const creneaux = await creneauxResponse.json();
+                document.getElementById('statsMissions').innerText = creneaux.length;
+                
+                // Dernières livraisons
+                const livraisonsResponse = await fetch('/api/livraisons');
+                const livraisons = await livraisonsResponse.json();
+                const datesLivraisons = Object.keys(livraisons).sort().reverse().slice(0, 5);
+                
+                const livraisonsDiv = document.getElementById('dernieresLivraisons');
+                if (datesLivraisons.length === 0) {
+                    livraisonsDiv.innerHTML = '<div class="empty-state">Aucune livraison</div>';
+                } else {
+                    let html = '';
+                    for (const date of datesLivraisons) {
+                        const produits = livraisons[date];
+                        const totalProduits = produits.reduce((sum, p) => sum + (p.quantite || 0), 0);
+                        html += `
+                            <div class="recent-item">
+                                <div>
+                                    <span class="recent-title">📅 ${new Date(date).toLocaleDateString('fr-FR')}</span>
+                                </div>
+                                <div class="recent-date">${totalProduits} produits</div>
+                            </div>
+                        `;
+                    }
+                    livraisonsDiv.innerHTML = html;
+                }
+                
+                // Péremptions proches
+                const tousProduits = [];
+                for (const date of Object.keys(livraisons)) {
+                    for (const p of livraisons[date]) {
+                        if (p.date_peremption) {
+                            tousProduits.push(p);
+                        }
+                    }
+                }
+                
+                const today = new Date();
+                const peremptions = tousProduits.filter(p => {
+                    const expiry = new Date(p.date_peremption);
+                    const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+                    return diffDays <= 7 && diffDays >= 0;
+                }).slice(0, 5);
+                
+                const peremptionsDiv = document.getElementById('peremptionsProches');
+                if (peremptions.length === 0) {
+                    peremptionsDiv.innerHTML = '<div class="empty-state">Aucune péremption imminente</div>';
+                } else {
+                    let html = '';
+                    for (const p of peremptions) {
+                        html += `
+                            <div class="recent-item">
+                                <div>
+                                    <span class="recent-title warning-item">⚠️ ${escapeHtml(p.produit_nom || p.produit)}</span>
+                                </div>
+                                <div class="recent-date">Expire le ${new Date(p.date_peremption).toLocaleDateString('fr-FR')}</div>
+                            </div>
+                        `;
+                    }
+                    peremptionsDiv.innerHTML = html;
+                }
+                
+                // Prochaines distributions (messages de type distribution)
+                const messagesResponse = await fetch('/api/messages');
+                const messages = await messagesResponse.json();
+                const distributions = messages.filter(m => m.type === 'distribution').slice(0, 5);
+                
+                const distributionsDiv = document.getElementById('prochainesDistributions');
+                if (distributions.length === 0) {
+                    distributionsDiv.innerHTML = '<div class="empty-state">Aucune distribution prévue</div>';
+                } else {
+                    let html = '';
+                    for (const d of distributions) {
+                        html += `
+                            <div class="recent-item">
+                                <div>
+                                    <span class="recent-title">📢 ${escapeHtml(d.titre)}</span>
+                                </div>
+                                <div class="recent-date">${d.date_distribution ? new Date(d.date_distribution).toLocaleDateString('fr-FR') : ''}</div>
+                            </div>
+                        `;
+                    }
+                    distributionsDiv.innerHTML = html;
+                }
+                
+                // Stock par catégorie (à partir des produits)
+                const produitsResponse = await fetch('/api/produits');
+                const produits = await produitsResponse.json();
+                const groupes = {};
+                for (const p of produits) {
+                    const groupe = p.groupe || 'Autre';
+                    if (!groupes[groupe]) groupes[groupe] = 0;
+                    groupes[groupe] += p.points_total || 1;
+                }
+                
+                const stockDiv = document.getElementById('stockCategories');
+                if (Object.keys(groupes).length === 0) {
+                    stockDiv.innerHTML = '<div class="empty-state">Aucun produit en stock</div>';
+                } else {
+                    let html = '';
+                    const topGroupes = Object.entries(groupes).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                    for (const [groupe, points] of topGroupes) {
+                        html += `
+                            <div class="recent-item">
+                                <div>
+                                    <span class="recent-title">📦 ${escapeHtml(groupe)}</span>
+                                </div>
+                                <div class="recent-date">${points} points</div>
+                            </div>
+                        `;
+                    }
+                    stockDiv.innerHTML = html;
+                }
+                
+            } catch (error) {
+                console.error('Erreur chargement dashboard:', error);
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        loadDashboard();
+    </script>
 </body>
 </html>

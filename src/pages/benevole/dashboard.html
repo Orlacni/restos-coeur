@@ -123,6 +123,9 @@
                         <a href="/profil.html" class="dropdown-item">
                             <i class="fas fa-user-circle"></i> Mon profil
                         </a>
+                        <div class="dropdown-item" onclick="refreshPermissions()">
+                            <i class="fas fa-sync-alt"></i> Recharger mes accès
+                        </div>
                         <div class="dropdown-item">
                             <i class="fas fa-moon"></i> Mode sombre
                             <label class="switch">
@@ -183,22 +186,17 @@
     <script>
         async function loadDashboard() {
             try {
-                // Récupérer les infos utilisateur
                 var userResponse = await fetch('/api/user/profile');
                 var user = await userResponse.json();
                 document.getElementById('userPrenomNom').innerText = (user.prenom || '') + ' ' + (user.nom || '');
                 
-                // Récupérer les créneaux
                 var creneauxResponse = await fetch('/api/creneaux');
                 var creneaux = await creneauxResponse.json();
                 
                 var missionsCount = creneaux.length;
                 document.getElementById('missionsCount').innerText = missionsCount;
-                
-                // Calculer les heures estimées (2h par mission par défaut)
                 document.getElementById('heuresCount').innerText = missionsCount * 2;
                 
-                // Afficher les prochaines missions (max 3)
                 var prochainesDiv = document.getElementById('prochainesMissions');
                 if (creneaux.length === 0) {
                     prochainesDiv.innerHTML = '<div class="empty-state">Aucune mission à venir</div>';
@@ -207,7 +205,6 @@
                     for (var i = 0; i < Math.min(creneaux.length, 3); i++) {
                         var c = creneaux[i];
                         var date = new Date(c.date_creneau).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-                        var statutClass = c.mon_statut === 'inscrit' ? 'inscrit' : '';
                         html += `
                             <div class="next-mission">
                                 <div class="next-mission-date">📅 ${date}</div>
@@ -220,12 +217,10 @@
                     prochainesDiv.innerHTML = html;
                 }
                 
-                // Récupérer l'historique
                 var historiqueResponse = await fetch('/api/creneaux/passes');
                 var historique = await historiqueResponse.json();
                 document.getElementById('missionsPasseesCount').innerText = historique.length;
                 
-                // Récupérer les dernières informations
                 var messagesResponse = await fetch('/api/messages');
                 var messages = await messagesResponse.json();
                 var infosDiv = document.getElementById('dernieresInfos');

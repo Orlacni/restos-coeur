@@ -3,9 +3,214 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion du planning - Administration</title>
+    <title>Gestion du planning - Restos du Cœur</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .planning-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .creneau-card {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 1.2rem;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--restos-rose);
+            transition: all 0.2s ease;
+        }
+        
+        .creneau-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+        
+        .creneau-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .creneau-date {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--restos-rose);
+        }
+        
+        .creneau-heure {
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        
+        .creneau-type {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: var(--restos-rose);
+            color: white;
+        }
+        
+        .inscrits-list {
+            margin-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 1rem;
+        }
+        
+        .inscrit-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .inscrit-item:last-child {
+            border-bottom: none;
+        }
+        
+        .btn-present {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .btn-absent {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .statut-present {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .statut-absent {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            border-radius: 16px;
+        }
+        
+        .stats-planning {
+            background: linear-gradient(135deg, var(--restos-rose) 0%, var(--restos-rose-fonce) 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .stats-planning {
+                flex-direction: column;
+                text-align: center;
+            }
+            .creneau-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+        
+        .btn-ajouter {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-ajouter:hover {
+            background: var(--restos-rose-fonce);
+            transform: translateY(-1px);
+        }
+        
+        .btn-annuler {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-annuler:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+        
+        .btn-edit {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .badge-count {
+            background: white;
+            color: var(--restos-rose);
+            padding: 0.15rem 0.5rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            margin-left: 0.5rem;
+        }
+    </style>
 </head>
 <body>
     <div class="app-container">
@@ -50,23 +255,305 @@
                         <div class="dropdown-item" onclick="logout()">
                             <i class="fas fa-sign-out-alt"></i> Déconnexion
                         </div>
+                        <div class="dropdown-item" onclick="refreshPermissions()">
+    <i class="fas fa-sync-alt"></i> Recharger mes accès
+</div>
                     </div>
                 </div>
             </div>
             
             <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
                 <h2>📅 Gestion du planning</h2>
-                <button onclick="showAddCreneauModal()" style="background: var(--restos-rose);">➕ Ajouter un créneau</button>
-            </div>
-            
-            <div id="creneaux-list" class="planning-container">
-                <div class="loading">Chargement...</div>
+                
+                <div class="stats-planning">
+                    <div>
+                        <span><strong>📋 Créneaux à venir</strong></span>
+                        <span id="creneauxCount">0 créneau(x)</span>
+                    </div>
+                    <button class="btn-ajouter" onclick="showAddCreneauModal()">
+                        <i class="fas fa-plus"></i> Ajouter un créneau
+                    </button>
+                </div>
+                
+                <div id="creneaux-list" class="planning-container">
+                    <div class="loading">Chargement...</div>
+                </div>
             </div>
         </div>
+    </div>
+    
+    <!-- Modal ajout/modification créneau -->
+    <div id="creneauModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <h2 id="modalTitle">Ajouter un créneau</h2>
+            <form id="creneauForm">
+                <input type="hidden" id="creneauId">
+                
+                <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" id="date_creneau" class="form-control" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Heure début *</label>
+                        <input type="time" id="heure_debut" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Heure fin *</label>
+                        <input type="time" id="heure_fin" class="form-control" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Type d'activité *</label>
+                    <select id="type_activite" class="form-control" required>
+                        <option value="distribution">🍽️ Distribution</option>
+                        <option value="preparation">🍳 Préparation des repas</option>
+                        <option value="tri">📦 Tri des dons</option>
+                        <option value="livraison">🚚 Livraison</option>
+                        <option value="administration">📋 Administrative</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Nombre de places *</label>
+                    <input type="number" id="places_total" class="form-control" value="5" min="1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Description (optionnel)</label>
+                    <textarea id="description" class="form-control" rows="2" placeholder="Informations supplémentaires..."></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
+                    <button type="button" onclick="closeModal()" class="btn-annuler">Annuler</button>
+                    <button type="submit" class="btn-ajouter">💾 Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="progressModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h2>Chargement...</h2>
+            <div id="progressStatus">Traitement en cours...</div>
+            <div id="progressResult"></div>
         </div>
     </div>
     
     <script src="/js/layout.js"></script>
+    <script>
+        var creneaux = [];
+        
+        async function loadCreneaux() {
+            try {
+                var response = await fetch('/api/creneaux');
+                if (!response.ok) {
+                    console.error('Erreur API:', response.status);
+                    document.getElementById('creneaux-list').innerHTML = '<div class="empty-state">❌ Erreur de chargement</div>';
+                    return;
+                }
+                creneaux = await response.json();
+                console.log('Creneaux chargés:', creneaux.length);
+                displayCreneaux();
+                document.getElementById('creneauxCount').innerHTML = creneaux.length + ' créneau(x)';
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('creneaux-list').innerHTML = '<div class="empty-state">❌ Erreur de connexion</div>';
+            }
+        }
+        
+        function getTypeLabel(type) {
+            var types = {
+                'distribution': '🍽️ Distribution',
+                'preparation': '🍳 Préparation',
+                'tri': '📦 Tri',
+                'livraison': '🚚 Livraison',
+                'administration': '📋 Administrative'
+            };
+            return types[type] || type;
+        }
+        
+        function displayCreneaux() {
+            var container = document.getElementById('creneaux-list');
+            
+            if (creneaux.length === 0) {
+                container.innerHTML = '<div class="empty-state">📭 Aucun créneau programmé</div>';
+                return;
+            }
+            
+            var html = '';
+            for (var i = 0; i < creneaux.length; i++) {
+                var c = creneaux[i];
+                var date = new Date(c.date_creneau).toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                var placesDisponibles = c.places_total - (c.places_prises || 0);
+                
+                html += `
+                    <div class="creneau-card">
+                        <div class="creneau-header">
+                            <div>
+                                <span class="creneau-date">📅 ${date}</span>
+                                <span class="creneau-heure">⏰ ${c.heure_debut} - ${c.heure_fin}</span>
+                            </div>
+                            <div>
+                                <span class="creneau-type">${getTypeLabel(c.type_activite)}</span>
+                                <button onclick="editCreneau(${c.id})" class="btn-edit" style="margin-left: 0.5rem;">✏️</button>
+                                <button onclick="deleteCreneau(${c.id})" class="btn-delete">🗑️</button>
+                            </div>
+                        </div>
+                        <div>
+                            <span>⭐ Places: <strong>${placesDisponibles}/${c.places_total}</strong> disponibles</span>
+                            ${c.description ? `<div style="margin-top: 0.5rem; color: var(--text-secondary);">📝 ${escapeHtml(c.description)}</div>` : ''}
+                        </div>
+                        ${c.inscrits && c.inscrits.length > 0 ? `
+                            <div class="inscrits-list">
+                                <strong>👥 Bénévoles inscrits (${c.inscrits.length}) :</strong>
+                                ${c.inscrits.map(inscrit => `
+                                    <div class="inscrit-item">
+                                        <div>
+                                            <strong>${escapeHtml(inscrit.prenom)} ${escapeHtml(inscrit.nom)}</strong><br>
+                                            <small>${inscrit.email}</small>
+                                        </div>
+                                        <div>
+                                            ${inscrit.statut === 'present' ? 
+                                                '<span class="statut-present">✅ Présent</span>' : 
+                                                (inscrit.statut === 'absent' ? 
+                                                    '<span class="statut-absent">❌ Absent</span>' : 
+                                                    '<span>📝 Inscrit</span>')}
+                                            <button onclick="marquerPresence(${inscrit.id}, 'present')" class="btn-present" style="margin-left: 5px;">Présent</button>
+                                            <button onclick="marquerPresence(${inscrit.id}, 'absent')" class="btn-absent">Absent</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<div class="inscrits-list"><em>Aucun bénévole inscrit pour le moment</em></div>'}
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+        
+        function showAddCreneauModal() {
+            document.getElementById('modalTitle').textContent = 'Ajouter un créneau';
+            document.getElementById('creneauForm').reset();
+            document.getElementById('creneauId').value = '';
+            document.getElementById('creneauModal').style.display = 'block';
+        }
+        
+        async function editCreneau(id) {
+            var creneau = null;
+            for (var i = 0; i < creneaux.length; i++) {
+                if (creneaux[i].id === id) {
+                    creneau = creneaux[i];
+                    break;
+                }
+            }
+            if (!creneau) return;
+            
+            document.getElementById('modalTitle').textContent = 'Modifier le créneau';
+            document.getElementById('creneauId').value = creneau.id;
+            document.getElementById('date_creneau').value = creneau.date_creneau;
+            document.getElementById('heure_debut').value = creneau.heure_debut;
+            document.getElementById('heure_fin').value = creneau.heure_fin;
+            document.getElementById('type_activite').value = creneau.type_activite;
+            document.getElementById('places_total').value = creneau.places_total;
+            document.getElementById('description').value = creneau.description || '';
+            document.getElementById('creneauModal').style.display = 'block';
+        }
+        
+        async function deleteCreneau(id) {
+            if (confirm('Supprimer ce créneau ? Toutes les inscriptions seront perdues.')) {
+                var response = await fetch('/api/admin/creneaux/' + id, { method: 'DELETE' });
+                if (response.ok) {
+                    loadCreneaux();
+                } else {
+                    alert('Erreur lors de la suppression');
+                }
+            }
+        }
+        
+        async function marquerPresence(inscriptionId, statut) {
+            try {
+                var response = await fetch('/api/admin/inscriptions/' + inscriptionId + '/statut', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ statut: statut })
+                });
+                
+                if (response.ok) {
+                    loadCreneaux();
+                } else {
+                    alert('Erreur lors de la mise à jour');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur lors de la mise à jour');
+            }
+        }
+        
+        document.getElementById('creneauForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            var id = document.getElementById('creneauId').value;
+            var data = {
+                date_creneau: document.getElementById('date_creneau').value,
+                heure_debut: document.getElementById('heure_debut').value,
+                heure_fin: document.getElementById('heure_fin').value,
+                type_activite: document.getElementById('type_activite').value,
+                places_total: parseInt(document.getElementById('places_total').value),
+                description: document.getElementById('description').value
+            };
+            
+            var url = id ? '/api/admin/creneaux/' + id : '/api/admin/creneaux';
+            var method = id ? 'PUT' : 'POST';
+            
+            var progressModal = document.getElementById('progressModal');
+            var progressStatus = document.getElementById('progressStatus');
+            progressModal.style.display = 'block';
+            progressStatus.innerText = 'Enregistrement en cours...';
+            
+            try {
+                var response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                progressModal.style.display = 'none';
+                
+                if (response.ok) {
+                    closeModal();
+                    loadCreneaux();
+                } else {
+                    var error = await response.json();
+                    alert('Erreur: ' + (error.error || 'Erreur lors de l\'enregistrement'));
+                }
+            } catch (error) {
+                progressModal.style.display = 'none';
+                console.error('Erreur:', error);
+                alert('Erreur lors de l\'enregistrement');
+            }
+        });
+        
+        function closeModal() {
+            document.getElementById('creneauModal').style.display = 'none';
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Chargement initial
+        loadCreneaux();
+    </script>
 </body>
 </html>

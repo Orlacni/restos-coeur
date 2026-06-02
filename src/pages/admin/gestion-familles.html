@@ -118,6 +118,19 @@
             gap: 1rem;
         }
         
+        .stats-detail {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+        }
+        
+        .stats-detail span {
+            background: rgba(255,255,255,0.2);
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+        }
+        
         .search-bar {
             background: var(--bg-primary);
             border-radius: 16px;
@@ -145,11 +158,6 @@
             color: var(--text-primary);
         }
         
-        .search-input input:focus {
-            outline: none;
-            border-color: var(--restos-rose);
-        }
-        
         .filters {
             display: flex;
             gap: 0.5rem;
@@ -170,6 +178,34 @@
             background: var(--restos-rose);
             color: white;
             border-color: var(--restos-rose);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn-action {
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-import {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-export {
+            background: #28a745;
+            color: white;
         }
         
         .famille-card {
@@ -323,9 +359,6 @@
             .search-bar {
                 flex-direction: column;
             }
-            .filters {
-                justify-content: center;
-            }
             .stats-campagne {
                 flex-direction: column;
                 text-align: center;
@@ -340,9 +373,14 @@
             border-radius: 16px;
         }
         
-        .action-buttons {
-            display: flex;
-            gap: 0.5rem;
+        .btn-ajouter {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
         }
         
         body.dark-mode .points-adultes {
@@ -351,28 +389,6 @@
         
         body.dark-mode .points-enfants {
             background: #3a2a1a;
-        }
-        
-        .stats-pald {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        
-        .stat-pald-item {
-            text-align: center;
-            min-width: 45px;
-        }
-        
-        .stat-pald-item .stat-letter {
-            font-weight: 700;
-            font-size: 0.8rem;
-        }
-        
-        .stat-pald-item .stat-value {
-            font-size: 0.9rem;
-            font-weight: 600;
         }
     </style>
 </head>
@@ -419,6 +435,9 @@
                         <div class="dropdown-item" onclick="logout()">
                             <i class="fas fa-sign-out-alt"></i> Déconnexion
                         </div>
+                        <div class="dropdown-item" onclick="refreshPermissions()">
+    <i class="fas fa-sync-alt"></i> Recharger mes accès
+</div>
                     </div>
                 </div>
             </div>
@@ -448,6 +467,7 @@
         </div>
     </div>
     
+    <!-- Modal ajout campagne -->
     <div id="campagneModal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
             <h2>Ajouter une campagne</h2>
@@ -465,14 +485,15 @@
                         <option value="Automne">Automne</option>
                     </select>
                 </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
-                    <button type="button" onclick="closeCampagneModal()" class="btn-secondary">Annuler</button>
-                    <button type="submit" class="btn">Créer</button>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" onclick="closeCampagneModal()" class="btn-annuler">Annuler</button>
+                    <button type="submit" class="btn-ajouter">Créer</button>
                 </div>
             </form>
         </div>
     </div>
     
+    <!-- Modal ajout/modification famille -->
     <div id="familleModal" class="modal">
         <div class="modal-content" style="max-width: 700px; max-height: 85vh; overflow-y: auto;">
             <h2 id="modalTitle">Ajouter une famille</h2>
@@ -565,7 +586,7 @@
                 
                 <div id="pointsPreview" class="points-calcul" style="display: none; background: #FFF5F8; border-radius: 12px; padding: 1rem; margin-top: 1rem;">
                     <div style="text-align: center;">
-                        <strong>⭐ Points adultes (PALD) :</strong>
+                        <strong>⭐ Points adultes :</strong>
                         <span id="pointsAdultesPreview" style="font-size: 1.5rem; font-weight: 800; color: var(--restos-rose);">0</span>
                     </div>
                     <div id="pointsEnfantsPreview" style="margin-top: 0.5rem; text-align: center;">
@@ -575,10 +596,54 @@
                 </div>
                 
                 <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
-                    <button type="button" onclick="closeFamilleModal()" class="btn-secondary">Annuler</button>
-                    <button type="submit" class="btn">💾 Enregistrer</button>
+                    <button type="button" onclick="closeFamilleModal()" class="btn-annuler">Annuler</button>
+                    <button type="submit" class="btn-ajouter">💾 Enregistrer</button>
                 </div>
             </form>
+        </div>
+    </div>
+    
+    <!-- Modal import -->
+    <div id="importModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2>📥 Importer des familles</h2>
+            <p>Formats acceptés : CSV, Excel (.xlsx), TSV</p>
+            
+            <button type="button" onclick="downloadTemplate()" class="btn-action btn-import" style="width: 100%; margin-bottom: 1rem; justify-content: center;">
+                <i class="fas fa-download"></i> Télécharger le template
+            </button>
+            
+            <div class="form-group">
+                <label>Fichier à importer</label>
+                <input type="file" id="importFile" class="form-control" accept=".csv,.xlsx,.tsv,.txt">
+            </div>
+            
+            <div class="form-group">
+                <label>Format du fichier</label>
+                <select id="importFormat" class="form-control">
+                    <option value="csv">CSV (séparateur virgule)</option>
+                    <option value="tsv">TSV (séparateur tabulation)</option>
+                    <option value="excel">Excel (.xlsx)</option>
+                </select>
+            </div>
+            
+            <div class="info-banner" style="background: var(--bg-tertiary); padding: 0.75rem; border-radius: 12px; margin-bottom: 1rem; font-size: 0.8rem;">
+                <i class="fas fa-info-circle"></i> <strong>Format attendu :</strong><br>
+                Nom, Prénom, Numéro de carte, Heure de passage, Adresse, Code postal, Ville, Nombre d'adultes, Type dotation, enfants 0-6, enfants 6-12, enfants 12-18, enfants 18-36, enfants 36-60, Téléphone, Consentement Tél.
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="closeImportModal()" class="btn-annuler">Annuler</button>
+                <button type="button" onclick="importFamilles()" class="btn-action btn-import">📥 Importer</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="progressModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h2>Chargement...</h2>
+            <div id="progressStatus">Traitement en cours...</div>
+            <div id="progressResult"></div>
         </div>
     </div>
     
@@ -592,8 +657,8 @@
         var sortOrder = 'asc';
         
         function calculerRepasSemaine(nbAdultes, typeDotation) {
-            var repasNormale = {1:7, 2:10, 3:15, 4:20, 5:25, 6:30, 7:35};
-            var repasMinoree = {1:4, 2:6, 3:9, 4:12, 5:15, 6:18, 7:21};
+            var repasNormale = {1:6, 2:10, 3:15, 4:20, 5:25, 6:30, 7:35};
+            var repasMinoree = {1:3, 2:6, 3:9, 4:12, 5:15, 6:18, 7:21};
             if (typeDotation === 'minoree') {
                 return repasMinoree[nbAdultes] || nbAdultes * 3;
             }
@@ -602,6 +667,9 @@
         
         function calculerPointsAdultes(nbAdultes, typeDotation) {
             var repasSemaine = calculerRepasSemaine(nbAdultes, typeDotation);
+            if (nbAdultes === 1 && typeDotation === 'normale') {
+                return (repasSemaine * 4) + 2;
+            }
             return repasSemaine * 4;
         }
         
@@ -672,10 +740,6 @@
             displayCampagnes();
             var response = await fetch('/api/familles/' + campagneId);
             familles = await response.json();
-            for (var i = 0; i < familles.length; i++) {
-                var f = familles[i];
-                f.nb_repas_semaine = calculerRepasSemaine(f.nb_adultes, f.type_dotation || 'normale');
-            }
             displayFamilles();
         }
         
@@ -721,30 +785,23 @@
                 }
             });
             
-            // Calcul des totaux détaillés par catégorie PALD + Bébés
-            var totalProtides = 0;
-            var totalAccompagnement = 0;
-            var totalLaitier = 0;
-            var totalDessert = 0;
-            var totalBebes = 0;
+            // Statistiques
+            var totalAdultes = 0;
+            var totalBebes0_3 = 0; // 0 à 36 mois
+            var totalPoints = 0;
             
             for (var i = 0; i < filtered.length; i++) {
                 var f = filtered[i];
+                totalAdultes += f.nb_adultes;
+                totalBebes0_3 += (f.enfants_0_6 || 0) + (f.enfants_6_12 || 0) + (f.enfants_12_18 || 0) + (f.enfants_18_36 || 0);
                 var pointsAdultes = calculerPointsAdultes(f.nb_adultes, f.type_dotation || 'normale');
-                var pointsParCategorie = pointsAdultes / 4;
-                
-                totalProtides += pointsParCategorie;
-                totalAccompagnement += pointsParCategorie;
-                totalLaitier += pointsParCategorie;
-                totalDessert += pointsParCategorie;
-                
                 var enfants = {
                     enfants_6_12: f.enfants_6_12 || 0,
                     enfants_12_18: f.enfants_12_18 || 0,
                     enfants_18_36: f.enfants_18_36 || 0
                 };
                 var enfantsPoints = calculerPointsEnfants(enfants);
-                totalBebes += enfantsPoints.total;
+                totalPoints += pointsAdultes + enfantsPoints.total;
             }
             
             if (filtered.length === 0) {
@@ -754,15 +811,15 @@
                             <span><strong>${campagneActive.annee} - ${campagneActive.saison}</strong></span>
                             <span>👨‍👩‍👧‍👦 0 familles</span>
                         </div>
-                        <div class="stats-pald">
-                            <div class="stat-pald-item"><div class="stat-letter">🥩</div><div class="stat-value">0</div></div>
-                            <div class="stat-pald-item"><div class="stat-letter">🥕</div><div class="stat-value">0</div></div>
-                            <div class="stat-pald-item"><div class="stat-letter">🥛</div><div class="stat-value">0</div></div>
-                            <div class="stat-pald-item"><div class="stat-letter">🍰</div><div class="stat-value">0</div></div>
-                            <div class="stat-pald-item" style="border-left: 1px solid rgba(255,255,255,0.3); padding-left: 0.8rem;"><div class="stat-letter">👶 Bébés</div><div class="stat-value">0</div></div>
+                        <div class="stats-detail">
+                            <span>👤 0 adultes</span>
+                            <span>👶 0 bébés (0-3 ans)</span>
+                            <span>⭐ 0 points</span>
                         </div>
                         <div class="action-buttons">
-                            <button onclick="showAddFamilleModal()" class="btn" style="background: white; color: var(--restos-rose);">➕ Ajouter</button>
+                            <button onclick="showImportModal()" class="btn-action btn-import"><i class="fas fa-upload"></i> Importer</button>
+                            <button onclick="exportFamilles('csv')" class="btn-action btn-export"><i class="fas fa-download"></i> Exporter</button>
+                            <button onclick="showAddFamilleModal()" class="btn-ajouter"><i class="fas fa-plus"></i> Ajouter</button>
                         </div>
                     </div>
                     <div class="search-bar">
@@ -789,15 +846,15 @@
                         <span><strong>${campagneActive.annee} - ${campagneActive.saison}</strong></span>
                         <span>👨‍👩‍👧‍👦 ${filtered.length} familles</span>
                     </div>
-                    <div class="stats-pald">
-                        <div class="stat-pald-item"><div class="stat-letter">🥩</div><div class="stat-value">${Math.round(totalProtides)}</div></div>
-                        <div class="stat-pald-item"><div class="stat-letter">🥕</div><div class="stat-value">${Math.round(totalAccompagnement)}</div></div>
-                        <div class="stat-pald-item"><div class="stat-letter">🥛</div><div class="stat-value">${Math.round(totalLaitier)}</div></div>
-                        <div class="stat-pald-item"><div class="stat-letter">🍰</div><div class="stat-value">${Math.round(totalDessert)}</div></div>
-                        <div class="stat-pald-item" style="border-left: 1px solid rgba(255,255,255,0.3); padding-left: 0.8rem;"><div class="stat-letter">👶 Bébés</div><div class="stat-value">${Math.round(totalBebes)}</div></div>
+                    <div class="stats-detail">
+                        <span>👤 ${totalAdultes} adultes</span>
+                        <span>👶 ${totalBebes0_3} bébés (0-3 ans)</span>
+                        <span>⭐ ${Math.round(totalPoints)} points</span>
                     </div>
                     <div class="action-buttons">
-                        <button onclick="showAddFamilleModal()" class="btn" style="background: white; color: var(--restos-rose);">➕ Ajouter</button>
+                        <button onclick="showImportModal()" class="btn-action btn-import"><i class="fas fa-upload"></i> Importer</button>
+                        <button onclick="exportFamilles('csv')" class="btn-action btn-export"><i class="fas fa-download"></i> Exporter</button>
+                        <button onclick="showAddFamilleModal()" class="btn-ajouter"><i class="fas fa-plus"></i> Ajouter</button>
                     </div>
                 </div>
                 <div class="search-bar">
@@ -849,19 +906,27 @@
                                 <span class="famille-dotation ${dotationClass}">${dotationText}</span>
                             </div>
                             <div class="famille-actions">
-                                <button onclick="editFamille(${f.id})" class="btn" style="background: var(--restos-rose); padding: 5px 12px;">✏️</button>
-                                <button onclick="deleteFamille(${f.id})" class="btn-danger" style="padding: 5px 12px;">🗑️</button>
+                                <button onclick="editFamille(${f.id})" class="btn-ajouter" style="background: var(--restos-rose); padding: 5px 12px;">✏️</button>
+                                <button onclick="deleteFamille(${f.id})" class="btn-ajouter" style="background: #dc3545; padding: 5px 12px;">🗑️</button>
                             </div>
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; font-size: 0.8rem;">
                             <div><strong>👤 Adultes:</strong> ${f.nb_adultes}</div>
-                            <div><strong>🍽️ Repas:</strong> ${f.nb_repas_semaine}</div>
+                            <div><strong>🍽️ Repas:</strong> ${calculerRepasSemaine(f.nb_adultes, f.type_dotation || 'normale')}</div>
                             <div><strong>🕐 Heure:</strong> ${escapeHtml(f.heure_passage) || '—'}</div>
                             <div><strong>📞 Tél:</strong> ${escapeHtml(telephoneAffichage)}</div>
                             <div><strong>📍 Adresse:</strong> ${escapeHtml(adresseComplete)}</div>
                         </div>
                         
-                    
+                        <div class="points-adultes">
+                            <div class="titre-section">🥗 Points adultes</div>
+                            <div class="points-detail">
+                                <div class="point-categorie"><div class="label">🥩 Protides</div><div class="value">${Math.round(pointsParCategorie)}</div></div>
+                                <div class="point-categorie"><div class="label">🥕 Accompagnement</div><div class="value">${Math.round(pointsParCategorie)}</div></div>
+                                <div class="point-categorie"><div class="label">🥛 Laitier</div><div class="value">${Math.round(pointsParCategorie)}</div></div>
+                                <div class="point-categorie"><div class="label">🍰 Dessert</div><div class="value">${Math.round(pointsParCategorie)}</div></div>
+                            </div>
+                        </div>
                         
                         ${enfantsPoints.total > 0 ? `
                         <div class="points-enfants">
@@ -869,9 +934,10 @@
                             <div class="points-detail">
                                 <div class="point-categorie"><div class="label">🥕 Accompagnement</div><div class="value">${enfantsPoints.accompagnement}</div></div>
                                 <div class="point-categorie"><div class="label">🥛 Laitier</div><div class="value">${enfantsPoints.laitier}</div></div>
-                                <div class="point-categorie"><div class="label">🍽️ PALD</div><div class="value">${enfantsPoints.pald}</div></div>
+                                <div class="point-categorie"><div class="label">⭐ PALD</div><div class="value">${enfantsPoints.pald}</div></div>
                             </div>
                             <div style="font-size: 0.65rem; text-align: center; margin-top: 0.3rem;">
+                                <span class="badge-age">📌 Les points PALD sont répartis équitablement entre les 4 catégories</span>
                             </div>
                         </div>
                         ` : ''}
@@ -1076,6 +1142,160 @@
                 alert('Erreur lors de la création');
             }
         });
+        
+        // ============ FONCTIONS IMPORT/EXPORT ============
+        
+        function showImportModal() {
+            if (!campagneActive) {
+                alert('Sélectionnez d\'abord une campagne');
+                return;
+            }
+            document.getElementById('importModal').style.display = 'block';
+        }
+        
+        function closeImportModal() {
+            document.getElementById('importModal').style.display = 'none';
+            document.getElementById('importFile').value = '';
+        }
+        
+        function closeProgressModal() {
+            document.getElementById('progressModal').style.display = 'none';
+        }
+        
+        function exportFamilles(format) {
+            if (!campagneActive) {
+                alert('Sélectionnez d\'abord une campagne');
+                return;
+            }
+            window.location.href = '/api/familles/export/' + campagneActive.id + '?format=' + format;
+        }
+        
+        function downloadTemplate() {
+            var template = [
+                ['Nom', 'Prénom', 'Numéro de carte', 'Heure de passage', 'Adresse', 'Code postal', 'Ville', 'Nombre d\'adultes', 'Type dotation', 'enfants 0-6', 'enfants 6-12', 'enfants 12-18', 'enfants 18-36', 'enfants 36-60', 'Téléphone', 'Consentement Tél.'],
+                ['Dupont', 'Jean', 'CARD001', 'MAR 9H10', '1 rue de Paris', '75001', 'Paris', '2', 'normale', '0', '0', '1', '0', '0', '0612345678', 'true'],
+                ['Martin', 'Marie', 'CARD002', 'MER 14H30', '5 rue des Lilas', '69000', 'Lyon', '1', 'minoree', '1', '0', '0', '0', '0', '0698765432', 'false']
+            ];
+            var csv = '';
+            for (var i = 0; i < template.length; i++) {
+                csv += template[i].join(',') + '\n';
+            }
+            var blob = new Blob([csv], { type: 'text/csv' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'template_familles.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        async function importFamilles() {
+            var file = document.getElementById('importFile').files[0];
+            if (!file) {
+                alert('Veuillez sélectionner un fichier');
+                return;
+            }
+            
+            var format = document.getElementById('importFormat').value;
+            var progressModal = document.getElementById('progressModal');
+            var progressStatus = document.getElementById('progressStatus');
+            var progressResult = document.getElementById('progressResult');
+            
+            progressModal.style.display = 'block';
+            progressStatus.innerText = 'Lecture du fichier...';
+            progressResult.innerHTML = '';
+            
+            try {
+                var data = [];
+                var text = await file.text();
+                var delimiter = format === 'tsv' ? '\t' : ',';
+                var lines = text.split('\n');
+                
+                if (lines.length > 0) {
+                    var headerParts = lines[0].split(delimiter);
+                    var headers = [];
+                    for (var i = 0; i < headerParts.length; i++) {
+                        headers.push(headerParts[i].trim());
+                    }
+                    
+                    for (var i = 1; i < lines.length; i++) {
+                        if (!lines[i].trim()) continue;
+                        var values = lines[i].split(delimiter);
+                        var row = {};
+                        for (var j = 0; j < headers.length && j < values.length; j++) {
+                            var value = values[j].trim().replace(/^"|"$/g, '');
+                            if (value === 'NULL' || value === 'null' || value === '') value = '';
+                            row[headers[j]] = value;
+                        }
+                        if (Object.keys(row).length > 0) data.push(row);
+                    }
+                }
+                
+                progressStatus.innerText = 'Conversion : ' + data.length + ' lignes...';
+                
+                var famillesImport = [];
+                for (var i = 0; i < data.length; i++) {
+                    var row = data[i];
+                    var nom = row['Nom'] || '';
+                    var prenom = row['Prénom'] || '';
+                    var numeroCarte = row['Numéro de carte'] || '';
+                    var heurePassage = row['Heure de passage'] || '';
+                    var adresse = row['Adresse'] || '';
+                    var codePostal = row['Code postal'] || '';
+                    var ville = row['Ville'] || '';
+                    var nbAdultes = parseInt(row['Nombre d\'adultes']) || 1;
+                    var typeDotation = row['Type dotation'] || 'normale';
+                    var enfants0_6 = parseInt(row['enfants 0-6']) || 0;
+                    var enfants6_12 = parseInt(row['enfants 6-12']) || 0;
+                    var enfants12_18 = parseInt(row['enfants 12-18']) || 0;
+                    var enfants18_36 = parseInt(row['enfants 18-36']) || 0;
+                    var enfants36_60 = parseInt(row['enfants 36-60']) || 0;
+                    var telephone = row['Téléphone'] || '';
+                    var consentementTel = row['Consentement Tél.'] || '';
+                    var consentementBool = (consentementTel === 'true' || consentementTel === 'TRUE' || consentementTel === '1');
+                    
+                    if (nom && prenom && numeroCarte) {
+                        famillesImport.push({
+                            nom: nom, prenom: prenom, numero_carte: numeroCarte, heure_passage: heurePassage,
+                            adresse: adresse, code_postal: codePostal, ville: ville, nb_adultes: nbAdultes,
+                            type_dotation: typeDotation, enfants_0_6: enfants0_6, enfants_6_12: enfants6_12,
+                            enfants_12_18: enfants12_18, enfants_18_36: enfants18_36, enfants_36_60: enfants36_60,
+                            telephone: consentementBool ? telephone : '', consentement: consentementBool
+                        });
+                    }
+                }
+                
+                if (famillesImport.length === 0) {
+                    throw new Error('Aucune donnée valide');
+                }
+                
+                progressStatus.innerText = 'Envoi des données (' + famillesImport.length + ' familles)...';
+                
+                var response = await fetch('/api/admin/familles/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ campagne_id: campagneActive.id, data: famillesImport })
+                });
+                
+                var result = await response.json();
+                
+                if (result.success) {
+                    progressResult.innerHTML = '<div style="color: #28a745;">✅ Import terminé !<br>' + result.successCount + ' familles importées</div>';
+                    setTimeout(function() {
+                        closeProgressModal();
+                        closeImportModal();
+                        selectCampagne(campagneActive.id);
+                    }, 2000);
+                } else {
+                    throw new Error(result.error);
+                }
+                
+            } catch (error) {
+                console.error('Erreur import:', error);
+                progressResult.innerHTML = '<div style="color: #dc3545;">❌ Erreur: ' + error.message + '</div>';
+                setTimeout(function() { closeProgressModal(); }, 3000);
+            }
+        }
         
         function escapeHtml(text) {
             if (!text) return '';

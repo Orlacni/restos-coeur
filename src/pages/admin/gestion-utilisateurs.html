@@ -341,6 +341,9 @@
                         <div class="dropdown-item" onclick="logout()">
                             <i class="fas fa-sign-out-alt"></i> Déconnexion
                         </div>
+                        <div class="dropdown-item" onclick="refreshPermissions()">
+    <i class="fas fa-sync-alt"></i> Recharger mes accès
+</div>
                     </div>
                 </div>
             </div>
@@ -482,16 +485,15 @@
         var roles = [];
         
         var availablePermissions = [
-            { id: 'dashboard', label: '📊 Dashboard' },
-            { id: 'communication', label: '📢 Communication' },
-            { id: 'planning', label: '📅 Planning' },
-            { id: 'livraisons', label: '🚚 Livraisons' },
-            { id: 'familles', label: '👨‍👩‍👧‍👦 Familles' },
-            { id: 'produits', label: '📦 Produits' },
-            { id: 'distribution', label: '🍽️ Distribution' },
-            { id: 'utilisateurs', label: '👥 Utilisateurs' },
-            { id: 'profil', label: '👤 Mon profil' }
-        ];
+    { id: 'communication', label: '📢 Communication' },
+    { id: 'gestion_planning', label: '📅 Planning' },
+    { id: 'livraisons', label: '🚚 Livraisons' },
+    { id: 'familles', label: '👨‍👩‍👧‍👦 Familles' },
+    { id: 'produits', label: '📦 Produits' },
+    { id: 'distribution', label: '🍽️ Distribution' },
+    { id: 'utilisateurs', label: '👥 Utilisateurs' },
+    { id: 'profil', label: '👤 Mon profil' }
+];
         
         async function loadUsers() {
             var response = await fetch('/api/admin/users');
@@ -829,16 +831,16 @@
             
             var id = document.getElementById('roleId').value;
             var permissions = [];
-            var checkboxes = document.querySelectorAll('#permissions-grid input[type="checkbox"]:checked');
-            for (var i = 0; i < checkboxes.length; i++) {
-                permissions.push(checkboxes[i].value);
-            }
-            
-            var data = {
-                nom: document.getElementById('roleNom').value,
-                description: document.getElementById('roleDescription').value,
-                permissions: permissions.join(',')
-            };
+var checkboxes = document.querySelectorAll('#permissions-grid input[type="checkbox"]:checked');
+for (var i = 0; i < checkboxes.length; i++) {
+    permissions.push(checkboxes[i].value);
+}
+
+var data = {
+    nom: document.getElementById('roleNom').value,
+    description: document.getElementById('roleDescription').value,
+    permissions: permissions.join(',')
+};
             
             var url = id ? '/api/admin/roles/' + id : '/api/admin/roles';
             var method = id ? 'PUT' : 'POST';
