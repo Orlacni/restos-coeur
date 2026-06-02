@@ -5,10 +5,9 @@ const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 // Configuration multer pour les uploads d'images
 const storage = multer.diskStorage({
@@ -35,15 +34,46 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'src')));
 app.use('/uploads', express.static(path.join(__dirname, 'src', 'uploads')));
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'restos_du_coeur_secret_2024',
+    secret: 'restos_du_coeur_secret_2024',
     resave: false,
     saveUninitialized: false,
     cookie: { secure: false, maxAge: 3600000 }
 }));
 
-
 // Initialisation base de données
 const db = new sqlite3.Database(path.join(__dirname, 'restos.db'));
+
+// Fonction pour vérifier les permissions d'un utilisateur
+function checkPermission(userId, permission, callback) {
+    db.get(`
+        SELECT r.permissions, u.role
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        WHERE u.id = ?
+    `, [userId], (err, row) => {
+        if (err || !row) return callback(false);
+        // Les admins ont toutes les permissions
+        if (row.role === 'admin') return callback(true);
+        const permissions = row.permissions ? row.permissions.split(',') : [];
+        callback(permissions.includes(permission));
+    });
+}
+
+// Fonction pour vérifier si l'utilisateur a au moins une des permissions
+function checkAnyPermission(userId, permissions, callback) {
+    db.get(`
+        SELECT r.permissions, u.role
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        WHERE u.id = ?
+    `, [userId], (err, row) => {
+        if (err || !row) return callback(false);
+        if (row.role === 'admin') return callback(true);
+        const userPerms = row.permissions ? row.permissions.split(',') : [];
+        const hasAny = permissions.some(p => userPerms.includes(p));
+        callback(hasAny);
+    });
+}
 
 // Création des tables
 db.serialize(() => {
@@ -59,8 +89,8 @@ db.serialize(() => {
     `);
 
     // Insertion des rôles par défaut
-    db.run(`INSERT OR IGNORE INTO roles (id, nom, description, permissions) VALUES (1, 'admin', 'Administrateur complet', 'dashboard,messages,planning,livraisons,familles,produits,utilisateurs,profil')`);
-    db.run(`INSERT OR IGNORE INTO roles (id, nom, description, permissions) VALUES (2, 'benevole', 'Bénévole standard', 'planning,profil')`);
+    db.run(`INSERT OR IGNORE INTO roles (id, nom, description, permissions) VALUES (1, 'admin', 'Administrateur complet', 'accueil,informations,dashboard,communication,gestion_planning,planning,livraisons,familles,produits,distribution,utilisateurs,messagerie,profil')`);
+    db.run(`INSERT OR IGNORE INTO roles (id, nom, description, permissions) VALUES (2, 'benevole', 'Bénévole standard', 'accueil,informations,planning,messagerie,profil')`);
 
     // Table utilisateurs
     db.run(`
@@ -345,8 +375,15 @@ bcrypt.hash('admin123', 10, (err, hash) => {
     if (!err) {
         db.run(`INSERT OR IGNORE INTO users (id, email, password, nom, prenom, role, role_id) 
                 VALUES (1, 'admin@restos.fr', ?, 'Admin', 'Système', 'admin', 1)`, [hash]);
+        
+        // Ajouter l'admin à la conversation générale
+        db.run(`INSERT OR IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (1, 1)`);
     }
 });
+
+// S'assurer que les rôles ont les bonnes permissions à chaque démarrage
+db.run(`UPDATE roles SET permissions = 'accueil,informations,dashboard,communication,gestion_planning,planning,livraisons,familles,produits,distribution,utilisateurs,messagerie,profil' WHERE id = 1`);
+db.run(`UPDATE roles SET permissions = 'accueil,informations,planning,messagerie,profil' WHERE id = 2`);
 
 // ============ ROUTES API ============
 
@@ -373,48 +410,13 @@ app.post('/api/register', async (req, res) => {
             [email, hashedPassword, nom, prenom, 'benevole', 2],
             function(err) {
                 if (err) return res.status(400).json({ error: 'Email déjà utilisé' });
+                
+                // Ajouter le nouvel utilisateur à la conversation générale
+                db.run(`INSERT OR IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (1, ?)`, [this.lastID]);
+                
                 res.json({ success: true, userId: this.lastID });
             }
         );
-    });
-});
-
-// Créer une conversation de groupe
-app.post('/api/conversations/group', (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
-    
-    const { participants, nom } = req.body;
-    const userId = req.session.user.id;
-    
-    if (!participants || !Array.isArray(participants) || participants.length < 2) {
-        return res.status(400).json({ error: 'Au moins 2 participants requis' });
-    }
-    
-    // S'assurer que l'utilisateur courant est dans la liste
-    if (!participants.includes(userId)) {
-        participants.push(userId);
-    }
-    
-    // Générer un nom par défaut si non fourni
-    let conversationNom = nom;
-    if (!conversationNom) {
-        conversationNom = 'Groupe de discussion';
-    }
-    
-    db.run(`INSERT INTO conversations (nom, type, created_by) VALUES (?, 'group', ?)`, 
-        [conversationNom, userId], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        const conversationId = this.lastID;
-        
-        // Ajouter tous les participants
-        const stmt = db.prepare(`INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)`);
-        for (const p of participants) {
-            stmt.run([conversationId, p]);
-        }
-        stmt.finalize();
-        
-        res.json({ success: true, conversation_id: conversationId });
     });
 });
 
@@ -495,6 +497,44 @@ app.put('/api/user/profile', upload.single('avatar'), async (req, res) => {
     db.run(updateQuery, params, function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, newPassword: !!new_password });
+    });
+});
+
+// Récupérer les permissions de l'utilisateur connecté
+app.get('/api/user/permissions', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+    
+    const userId = req.session.user.id;
+    const userRole = req.session.user.role;
+    
+    db.get(`SELECT role_id FROM users WHERE id = ?`, [userId], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const roleId = user ? user.role_id : null;
+        
+        if (userRole === 'admin') {
+            const allPermissions = ['accueil', 'informations', 'dashboard', 'communication', 'gestion_planning', 'planning', 'livraisons', 'familles', 'produits', 'distribution', 'utilisateurs', 'messagerie', 'profil'];
+            return res.json({ permissions: allPermissions });
+        }
+        
+        if (!roleId) {
+            return res.json({ permissions: ['accueil', 'informations', 'profil'] });
+        }
+        
+        db.get(`SELECT permissions FROM roles WHERE id = ?`, [roleId], (err, role) => {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            let permissions = [];
+            if (role && role.permissions) {
+                permissions = role.permissions.split(',');
+                permissions = permissions.map(p => p.trim());
+            }
+            
+            const basePermissions = ['accueil', 'informations', 'messagerie', 'planning'];
+            const allPermissions = [...new Set([...basePermissions, ...permissions])];
+            
+            res.json({ permissions: allPermissions });
+        });
     });
 });
 
@@ -660,12 +700,39 @@ app.post('/api/admin/campagnes', (req, res) => {
 // ============ ROUTES FAMILLES ============
 
 function calculerRepasSemaine(nbAdultes, typeDotation) {
-    const repasNormale = {1:7, 2:10, 3:15, 4:20, 5:25, 6:30, 7:35};
-    const repasMinoree = {1:4, 2:6, 3:9, 4:12, 5:15, 6:18, 7:21};
+    const repasNormale = {1:6, 2:10, 3:15, 4:20, 5:25, 6:30, 7:35};
+    const repasMinoree = {1:3, 2:6, 3:9, 4:12, 5:15, 6:18, 7:21};
     if (typeDotation === 'minoree') {
         return repasMinoree[nbAdultes] || nbAdultes * 3;
     }
     return repasNormale[nbAdultes] || nbAdultes * 7;
+}
+
+function calculerPointsAdultes(nbAdultes, typeDotation) {
+    var repasSemaine = calculerRepasSemaine(nbAdultes, typeDotation);
+    if (nbAdultes === 1 && typeDotation === 'normale') {
+        return (repasSemaine * 4) + 2;
+    }
+    return repasSemaine * 4;
+}
+
+function calculerPointsEnfants(enfants) {
+    var points = {
+        total: 0,
+        accompagnement: 0,
+        laitier: 0,
+        pald: 0
+    };
+    
+    points.accompagnement += (enfants.enfants_6_12 || 0) * 4;
+    points.accompagnement += (enfants.enfants_12_18 || 0) * 6;
+    points.laitier += (enfants.enfants_12_18 || 0) * 4;
+    points.pald += (enfants.enfants_12_18 || 0) * 3;
+    points.accompagnement += (enfants.enfants_18_36 || 0) * 6;
+    points.pald += (enfants.enfants_18_36 || 0) * 3;
+    
+    points.total = points.accompagnement + points.laitier + points.pald;
+    return points;
 }
 
 app.get('/api/familles/:campagneId', (req, res) => {
@@ -692,7 +759,7 @@ app.post('/api/admin/familles', (req, res) => {
             consentement } = req.body;
     
     const repasSemaine = calculerRepasSemaine(nb_adultes, type_dotation || 'normale');
-    const points = repasSemaine * 4;
+    const points = calculerPointsAdultes(nb_adultes, type_dotation || 'normale');
     
     db.run(`INSERT INTO familles (
         campagne_id, nom, prenom, numero_carte, nb_adultes, type_dotation, nb_repas_semaine, points,
@@ -724,7 +791,7 @@ app.put('/api/admin/familles/:id', (req, res) => {
     const familleId = req.params.id;
     
     const repasSemaine = calculerRepasSemaine(nb_adultes, type_dotation || 'normale');
-    const points = repasSemaine * 4;
+    const points = calculerPointsAdultes(nb_adultes, type_dotation || 'normale');
     
     db.run(`UPDATE familles 
             SET campagne_id = ?, nom = ?, prenom = ?, numero_carte = ?, 
@@ -774,7 +841,7 @@ app.post('/api/admin/familles/import', (req, res) => {
     
     const insertFamille = (famille, callback) => {
         const repasSemaine = calculerRepasSemaine(famille.nb_adultes || 1, famille.type_dotation || 'normale');
-        const points = repasSemaine * 4;
+        const points = calculerPointsAdultes(famille.nb_adultes || 1, famille.type_dotation || 'normale');
         
         let telFinal = null;
         if (famille.consentement === true || famille.consentement === 'true') {
@@ -1130,14 +1197,10 @@ app.post('/api/admin/users', async (req, res) => {
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             
-            const newUserId = this.lastID;
+            // Ajouter le nouvel utilisateur à la conversation générale
+            db.run(`INSERT OR IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (1, ?)`, [this.lastID]);
             
-            // Ajouter le nouvel utilisateur à la conversation générale (id 1)
-            db.run(`INSERT OR IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (1, ?)`, [newUserId], (err2) => {
-                if (err2) console.error('Erreur ajout à conversation générale:', err2.message);
-            });
-            
-            res.json({ success: true, id: newUserId });
+            res.json({ success: true, id: this.lastID });
         }
     );
 });
@@ -1277,177 +1340,6 @@ app.delete('/api/admin/whitelist/:email', (req, res) => {
     db.run('DELETE FROM whitelist WHERE email = ?', [req.params.email], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
-    });
-});
-
-// ============ ROUTES DISTRIBUTION ============
-
-app.get('/api/distribution/besoins/:campagneId', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Non autorisé' });
-    }
-    
-    const campagneId = req.params.campagneId;
-    
-    db.all('SELECT * FROM familles WHERE campagne_id = ? AND actif = 1', [campagneId], (err, familles) => {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        let besoins = {
-            protides: 0,
-            accompagnement: 0,
-            laitier: 0,
-            dessert: 0,
-            bebe: 0,
-            hygiene: 0
-        };
-        
-        for (const f of familles) {
-            const repasSemaine = calculerRepasSemaine(f.nb_adultes, f.type_dotation || 'normale');
-            const pointsAdultes = repasSemaine * 4;
-            const pointsParCategorie = pointsAdultes / 4;
-            
-            besoins.protides += pointsParCategorie;
-            besoins.accompagnement += pointsParCategorie;
-            besoins.laitier += pointsParCategorie;
-            besoins.dessert += pointsParCategorie;
-            
-            besoins.accompagnement += (f.enfants_6_12 || 0) * 4;
-            besoins.accompagnement += (f.enfants_12_18 || 0) * 6;
-            besoins.laitier += (f.enfants_12_18 || 0) * 4;
-            besoins.accompagnement += (f.enfants_18_36 || 0) * 6;
-            
-            const paldEnfants = (f.enfants_12_18 || 0) * 3 + (f.enfants_18_36 || 0) * 3;
-            besoins.protides += paldEnfants / 4;
-            besoins.accompagnement += paldEnfants / 4;
-            besoins.laitier += paldEnfants / 4;
-            besoins.dessert += paldEnfants / 4;
-        }
-        
-        besoins.protides = Math.round(besoins.protides);
-        besoins.accompagnement = Math.round(besoins.accompagnement);
-        besoins.laitier = Math.round(besoins.laitier);
-        besoins.dessert = Math.round(besoins.dessert);
-        
-        res.json({
-            familles: familles.length,
-            besoins: besoins,
-            date: new Date().toISOString().split('T')[0]
-        });
-    });
-});
-
-// ============ ROUTES MESSAGERIE ============
-
-app.get('/api/conversations', (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
-    
-    const userId = req.session.user.id;
-    
-    db.all(`
-        SELECT c.*, 
-               (SELECT COUNT(*) FROM messages_conversation WHERE conversation_id = c.id AND is_read = 0 AND user_id != ?) as unread_count,
-               (SELECT message FROM messages_conversation WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
-               (SELECT created_at FROM messages_conversation WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message_date
-        FROM conversations c
-        JOIN conversation_participants cp ON cp.conversation_id = c.id
-        WHERE cp.user_id = ?
-        ORDER BY last_message_date DESC
-    `, [userId, userId], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
-});
-
-app.get('/api/conversations/:id/messages', (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
-    
-    const conversationId = req.params.id;
-    const userId = req.session.user.id;
-    
-    db.get('SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [conversationId, userId], (err, participant) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!participant) return res.status(403).json({ error: 'Accès non autorisé' });
-        
-        db.run('UPDATE messages_conversation SET is_read = 1 WHERE conversation_id = ? AND user_id != ?', [conversationId, userId]);
-        
-        db.all(`
-            SELECT m.*, u.nom, u.prenom, u.avatar
-            FROM messages_conversation m
-            JOIN users u ON u.id = m.user_id
-            WHERE m.conversation_id = ?
-            ORDER BY m.created_at ASC
-        `, [conversationId], (err, messages) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json(messages);
-        });
-    });
-});
-
-app.post('/api/conversations/:id/messages', (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
-    
-    const conversationId = req.params.id;
-    const userId = req.session.user.id;
-    const { message } = req.body;
-    
-    if (!message || message.trim() === '') {
-        return res.status(400).json({ error: 'Message vide' });
-    }
-    
-    db.get('SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [conversationId, userId], (err, participant) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!participant) return res.status(403).json({ error: 'Accès non autorisé' });
-        
-        db.run(`INSERT INTO messages_conversation (conversation_id, user_id, message) VALUES (?, ?, ?)`,
-            [conversationId, userId, message],
-            function(err) {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json({ success: true, id: this.lastID });
-            }
-        );
-    });
-});
-
-app.post('/api/conversations/private', (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
-    
-    const { other_user_id } = req.body;
-    const userId = req.session.user.id;
-    
-    db.all(`
-        SELECT c.id FROM conversations c
-        JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
-        JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
-        WHERE c.type = 'private'
-    `, [userId, other_user_id], (err, existing) => {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        if (existing && existing.length > 0) {
-            return res.json({ success: true, conversation_id: existing[0].id });
-        }
-        
-        db.run(`INSERT INTO conversations (type, created_by) VALUES ('private', ?)`, [userId], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            
-            const conversationId = this.lastID;
-            
-            db.run(`INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)`,
-                [conversationId, userId, conversationId, other_user_id],
-                (err) => {
-                    if (err) return res.status(500).json({ error: err.message });
-                    res.json({ success: true, conversation_id: conversationId });
-                }
-            );
-        });
-    });
-});
-
-app.get('/api/users/benevoles', (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
-    
-    db.all('SELECT id, nom, prenom, email, avatar FROM users WHERE role = ? OR role = ? ORDER BY nom', ['admin', 'benevole'], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
     });
 });
 
@@ -1619,6 +1511,216 @@ app.put('/api/admin/inscriptions/:id/statut', (req, res) => {
     );
 });
 
+// ============ ROUTES DISTRIBUTION ============
+
+app.get('/api/distribution/besoins/:campagneId', (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+    
+    const campagneId = req.params.campagneId;
+    
+    db.all('SELECT * FROM familles WHERE campagne_id = ? AND actif = 1', [campagneId], (err, familles) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        let besoins = {
+            protides: 0,
+            accompagnement: 0,
+            laitier: 0,
+            dessert: 0,
+            bebe: 0,
+            hygiene: 0
+        };
+        
+        for (const f of familles) {
+            const pointsAdultes = calculerPointsAdultes(f.nb_adultes, f.type_dotation || 'normale');
+            const pointsParCategorie = pointsAdultes / 4;
+            
+            besoins.protides += pointsParCategorie;
+            besoins.accompagnement += pointsParCategorie;
+            besoins.laitier += pointsParCategorie;
+            besoins.dessert += pointsParCategorie;
+            
+            const enfants = {
+                enfants_6_12: f.enfants_6_12 || 0,
+                enfants_12_18: f.enfants_12_18 || 0,
+                enfants_18_36: f.enfants_18_36 || 0
+            };
+            const enfantsPoints = calculerPointsEnfants(enfants);
+            
+            besoins.accompagnement += enfantsPoints.accompagnement;
+            besoins.laitier += enfantsPoints.laitier;
+            
+            const paldParCategorie = enfantsPoints.pald / 4;
+            besoins.protides += paldParCategorie;
+            besoins.accompagnement += paldParCategorie;
+            besoins.laitier += paldParCategorie;
+            besoins.dessert += paldParCategorie;
+        }
+        
+        besoins.protides = Math.round(besoins.protides);
+        besoins.accompagnement = Math.round(besoins.accompagnement);
+        besoins.laitier = Math.round(besoins.laitier);
+        besoins.dessert = Math.round(besoins.dessert);
+        
+        res.json({
+            familles: familles.length,
+            besoins: besoins,
+            date: new Date().toISOString().split('T')[0]
+        });
+    });
+});
+
+// ============ ROUTES MESSAGERIE ============
+
+app.get('/api/conversations', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+    
+    const userId = req.session.user.id;
+    
+    db.all(`
+        SELECT c.*, 
+               (SELECT COUNT(*) FROM messages_conversation WHERE conversation_id = c.id AND is_read = 0 AND user_id != ?) as unread_count,
+               (SELECT message FROM messages_conversation WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
+               (SELECT created_at FROM messages_conversation WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message_date
+        FROM conversations c
+        JOIN conversation_participants cp ON cp.conversation_id = c.id
+        WHERE cp.user_id = ?
+        ORDER BY last_message_date DESC
+    `, [userId, userId], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.get('/api/conversations/:id/messages', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+    
+    const conversationId = req.params.id;
+    const userId = req.session.user.id;
+    
+    db.get('SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [conversationId, userId], (err, participant) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!participant) return res.status(403).json({ error: 'Accès non autorisé' });
+        
+        db.run('UPDATE messages_conversation SET is_read = 1 WHERE conversation_id = ? AND user_id != ?', [conversationId, userId]);
+        
+        db.all(`
+            SELECT m.*, u.nom, u.prenom, u.avatar
+            FROM messages_conversation m
+            JOIN users u ON u.id = m.user_id
+            WHERE m.conversation_id = ?
+            ORDER BY m.created_at ASC
+        `, [conversationId], (err, messages) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(messages);
+        });
+    });
+});
+
+app.post('/api/conversations/:id/messages', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+    
+    const conversationId = req.params.id;
+    const userId = req.session.user.id;
+    const { message } = req.body;
+    
+    if (!message || message.trim() === '') {
+        return res.status(400).json({ error: 'Message vide' });
+    }
+    
+    db.get('SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [conversationId, userId], (err, participant) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!participant) return res.status(403).json({ error: 'Accès non autorisé' });
+        
+        db.run(`INSERT INTO messages_conversation (conversation_id, user_id, message) VALUES (?, ?, ?)`,
+            [conversationId, userId, message],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ success: true, id: this.lastID });
+            }
+        );
+    });
+});
+
+app.post('/api/conversations/private', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+    
+    const { other_user_id } = req.body;
+    const userId = req.session.user.id;
+    
+    db.all(`
+        SELECT c.id FROM conversations c
+        JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
+        JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
+        WHERE c.type = 'private'
+    `, [userId, other_user_id], (err, existing) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        if (existing && existing.length > 0) {
+            return res.json({ success: true, conversation_id: existing[0].id });
+        }
+        
+        db.run(`INSERT INTO conversations (type, created_by) VALUES ('private', ?)`, [userId], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            const conversationId = this.lastID;
+            
+            db.run(`INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)`,
+                [conversationId, userId, conversationId, other_user_id],
+                (err) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ success: true, conversation_id: conversationId });
+                }
+            );
+        });
+    });
+});
+
+app.post('/api/conversations/group', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+    
+    const { participants, nom } = req.body;
+    const userId = req.session.user.id;
+    
+    if (!participants || !Array.isArray(participants) || participants.length < 2) {
+        return res.status(400).json({ error: 'Au moins 2 participants requis' });
+    }
+    
+    if (!participants.includes(userId)) {
+        participants.push(userId);
+    }
+    
+    let conversationNom = nom;
+    if (!conversationNom) {
+        conversationNom = 'Groupe de discussion';
+    }
+    
+    db.run(`INSERT INTO conversations (nom, type, created_by) VALUES (?, 'group', ?)`, 
+        [conversationNom, userId], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const conversationId = this.lastID;
+        
+        const stmt = db.prepare(`INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)`);
+        for (const p of participants) {
+            stmt.run([conversationId, p]);
+        }
+        stmt.finalize();
+        
+        res.json({ success: true, conversation_id: conversationId });
+    });
+});
+
+app.get('/api/users/benevoles', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+    
+    db.all('SELECT id, nom, prenom, email, avatar FROM users WHERE role_id IN (1, 2) ORDER BY nom', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
 // ============ ROUTES VÉRIFICATION SESSION ============
 
 app.get('/api/check-auth', (req, res) => {
@@ -1628,7 +1730,7 @@ app.get('/api/check-auth', (req, res) => {
     });
 });
 
-// ============ ROUTES PAGES HTML ============
+// ============ ROUTES PAGES HTML (avec vérification des permissions) ============
 
 // Pages publiques
 app.get('/', (req, res) => {
@@ -1657,61 +1759,94 @@ app.get('/messagerie.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'src', 'pages', 'messagerie.html'));
 });
 
-// Pages Admin
+// Pages Admin avec vérification des permissions
 app.get('/admin/dashboard.html', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-    }
-    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'dashboard.html'));
+    if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    
+    checkPermission(req.session.user.id, 'dashboard', (hasPermission) => {
+        if (!hasPermission && req.session.user.role !== 'admin') {
+            // Rediriger vers le dashboard bénévole
+            return res.sendFile(path.join(__dirname, 'src', 'pages', 'benevole', 'dashboard.html'));
+        }
+        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'dashboard.html'));
+    });
 });
 
 app.get('/admin/gestion-communication.html', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-    }
-    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-communication.html'));
-});
-
-app.get('/admin/gestion-livraisons.html', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-    }
-    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-livraisons.html'));
+    if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    
+    checkPermission(req.session.user.id, 'communication', (hasPermission) => {
+        if (!hasPermission && req.session.user.role !== 'admin') {
+            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+        }
+        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-communication.html'));
+    });
 });
 
 app.get('/admin/gestion-planning.html', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-    }
-    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-planning.html'));
+    if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    
+    checkPermission(req.session.user.id, 'gestion_planning', (hasPermission) => {
+        if (!hasPermission && req.session.user.role !== 'admin') {
+            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+        }
+        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-planning.html'));
+    });
+});
+
+app.get('/admin/gestion-livraisons.html', (req, res) => {
+    if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    
+    checkPermission(req.session.user.id, 'livraisons', (hasPermission) => {
+        if (!hasPermission && req.session.user.role !== 'admin') {
+            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+        }
+        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-livraisons.html'));
+    });
 });
 
 app.get('/admin/gestion-familles.html', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-    }
-    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-familles.html'));
+    if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    
+    checkPermission(req.session.user.id, 'familles', (hasPermission) => {
+        if (!hasPermission && req.session.user.role !== 'admin') {
+            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+        }
+        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-familles.html'));
+    });
 });
 
 app.get('/admin/gestion-produits.html', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-    }
-    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-produits.html'));
-});
-
-app.get('/admin/gestion-utilisateurs.html', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-    }
-    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-utilisateurs.html'));
+    if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    
+    checkPermission(req.session.user.id, 'produits', (hasPermission) => {
+        if (!hasPermission && req.session.user.role !== 'admin') {
+            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+        }
+        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-produits.html'));
+    });
 });
 
 app.get('/admin/gestion-distribution.html', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-    }
-    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-distribution.html'));
+    if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    
+    checkPermission(req.session.user.id, 'distribution', (hasPermission) => {
+        if (!hasPermission && req.session.user.role !== 'admin') {
+            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+        }
+        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-distribution.html'));
+    });
+});
+
+app.get('/admin/gestion-utilisateurs.html', (req, res) => {
+    if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    
+    checkPermission(req.session.user.id, 'utilisateurs', (hasPermission) => {
+        if (!hasPermission && req.session.user.role !== 'admin') {
+            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+        }
+        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-utilisateurs.html'));
+    });
 });
 
 // Pages Bénévole
@@ -1729,7 +1864,7 @@ app.get('/benevole/planning.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'src', 'pages', 'benevole', 'planning.html'));
 });
 
-// Ancienne route pour compatibilité (redirection)
+// Ancienne route pour compatibilité
 app.get('/admin/gestion-messages.html', (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
