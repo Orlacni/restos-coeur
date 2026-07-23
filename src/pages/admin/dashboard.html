@@ -9,7 +9,7 @@
     <style>
         .dashboard-stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
@@ -17,7 +17,7 @@
         .stat-card {
             background: var(--bg-primary);
             border-radius: 20px;
-            padding: 1.5rem;
+            padding: 1.2rem;
             box-shadow: var(--shadow-sm);
             border-left: 4px solid var(--restos-rose);
             transition: transform 0.2s ease;
@@ -29,46 +29,47 @@
         }
         
         .stat-card .stat-icon {
-            font-size: 2rem;
+            font-size: 1.8rem;
             color: var(--restos-rose);
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
         }
         
         .stat-card .stat-number {
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: 800;
             color: var(--restos-rose);
         }
         
         .stat-card .stat-label {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: var(--text-secondary);
         }
         
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
             gap: 1.5rem;
+            margin-bottom: 1.5rem;
         }
         
         .dashboard-card {
             background: var(--bg-primary);
             border-radius: 20px;
-            padding: 1.5rem;
+            padding: 1.2rem;
             box-shadow: var(--shadow-sm);
         }
         
         .dashboard-card h3 {
             color: var(--restos-rose);
             margin-bottom: 1rem;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             border-bottom: 2px solid var(--restos-rose);
             padding-bottom: 0.5rem;
             display: inline-block;
         }
         
         .recent-item {
-            padding: 0.75rem 0;
+            padding: 0.6rem 0;
             border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
@@ -87,7 +88,7 @@
         }
         
         .recent-date {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--text-secondary);
         }
         
@@ -95,10 +96,78 @@
             color: #dc3545;
         }
         
+        .btn-backup {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-backup:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+        
+        .btn-restore {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-restore:hover {
+            background: #138496;
+            transform: translateY(-1px);
+        }
+        
+        .backup-section {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-left: 4px solid #28a745;
+        }
+        
+        body.dark-mode .backup-section {
+            background: linear-gradient(135deg, #0f0f1a 0%, #0a0a15 100%);
+        }
+        
+        .small-text {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+        
         @media (max-width: 768px) {
             .dashboard-grid {
                 grid-template-columns: 1fr;
             }
+            .dashboard-stats {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .dashboard-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 1rem;
+            color: var(--text-secondary);
         }
     </style>
 </head>
@@ -191,7 +260,7 @@
                 </div>
             </div>
             
-            <div class="dashboard-grid" style="margin-top: 1.5rem;">
+            <div class="dashboard-grid">
                 <div class="dashboard-card">
                     <h3><i class="fas fa-calendar-week"></i> Prochaines distributions</h3>
                     <div id="prochainesDistributions">
@@ -205,6 +274,27 @@
                         <div class="loading">Chargement...</div>
                     </div>
                 </div>
+            </div>
+            
+            <!-- Section Sauvegarde / Restauration -->
+            <div class="dashboard-card backup-section">
+                <h3><i class="fas fa-database"></i> Sauvegarde / Restauration</h3>
+                <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+                    <button onclick="backupDB()" class="btn-backup">
+                        <i class="fas fa-download"></i> Télécharger la base
+                    </button>
+                    <button onclick="document.getElementById('restoreFile').click()" class="btn-restore">
+                        <i class="fas fa-upload"></i> Restaurer une base
+                    </button>
+                    <input type="file" id="restoreFile" accept=".db" style="display: none;" onchange="restoreDB(this)">
+                </div>
+                <p class="small-text">
+                    <i class="fas fa-info-circle"></i> Sauvegardez régulièrement votre base de données. 
+                    En cas de perte, vous pourrez la restaurer facilement.
+                </p>
+                <p class="small-text">
+                    <i class="fas fa-clock"></i> Une sauvegarde automatique est effectuée chaque nuit.
+                </p>
             </div>
         </div>
     </div>
@@ -300,7 +390,7 @@
                     peremptionsDiv.innerHTML = html;
                 }
                 
-                // Prochaines distributions (messages de type distribution)
+                // Prochaines distributions
                 const messagesResponse = await fetch('/api/messages');
                 const messages = await messagesResponse.json();
                 const distributions = messages.filter(m => m.type === 'distribution').slice(0, 5);
@@ -323,7 +413,7 @@
                     distributionsDiv.innerHTML = html;
                 }
                 
-                // Stock par catégorie (à partir des produits)
+                // Stock par catégorie
                 const produitsResponse = await fetch('/api/produits');
                 const produits = await produitsResponse.json();
                 const groupes = {};
@@ -355,6 +445,36 @@
             } catch (error) {
                 console.error('Erreur chargement dashboard:', error);
             }
+        }
+        
+        // Sauvegarde de la base de données
+        function backupDB() {
+            window.location.href = '/api/admin/backup-db';
+        }
+        
+        // Restauration de la base de données
+        async function restoreDB(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            if (confirm('⚠️ Attention : Cette opération remplacera TOUTES vos données actuelles. Continuer ?')) {
+                const formData = new FormData();
+                formData.append('backup', file);
+                
+                const response = await fetch('/api/admin/restore-db', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('Base restaurée ! La page va se recharger.');
+                    window.location.reload();
+                } else {
+                    alert('Erreur : ' + result.error);
+                }
+            }
+            input.value = '';
         }
         
         function escapeHtml(text) {

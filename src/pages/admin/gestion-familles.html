@@ -605,39 +605,32 @@
     
     <!-- Modal import -->
     <div id="importModal" class="modal">
-        <div class="modal-content" style="max-width: 600px;">
-            <h2>📥 Importer des familles</h2>
-            <p>Formats acceptés : CSV, Excel (.xlsx), TSV</p>
-            
-            <button type="button" onclick="downloadTemplate()" class="btn-action btn-import" style="width: 100%; margin-bottom: 1rem; justify-content: center;">
-                <i class="fas fa-download"></i> Télécharger le template
-            </button>
-            
-            <div class="form-group">
-                <label>Fichier à importer</label>
-                <input type="file" id="importFile" class="form-control" accept=".csv,.xlsx,.tsv,.txt">
-            </div>
-            
-            <div class="form-group">
-                <label>Format du fichier</label>
-                <select id="importFormat" class="form-control">
-                    <option value="csv">CSV (séparateur virgule)</option>
-                    <option value="tsv">TSV (séparateur tabulation)</option>
-                    <option value="excel">Excel (.xlsx)</option>
-                </select>
-            </div>
-            
-            <div class="info-banner" style="background: var(--bg-tertiary); padding: 0.75rem; border-radius: 12px; margin-bottom: 1rem; font-size: 0.8rem;">
-                <i class="fas fa-info-circle"></i> <strong>Format attendu :</strong><br>
-                Nom, Prénom, Numéro de carte, Heure de passage, Adresse, Code postal, Ville, Nombre d'adultes, Type dotation, enfants 0-6, enfants 6-12, enfants 12-18, enfants 18-36, enfants 36-60, Téléphone, Consentement Tél.
-            </div>
-            
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button type="button" onclick="closeImportModal()" class="btn-annuler">Annuler</button>
-                <button type="button" onclick="importFamilles()" class="btn-action btn-import">📥 Importer</button>
-            </div>
+    <div class="modal-content" style="max-width: 600px;">
+        <h2>📥 Importer des familles</h2>
+        <p>Format accepté : <strong>TSV (tabulation)</strong> uniquement</p>
+        
+        <button type="button" onclick="downloadTemplate()" class="btn-action btn-import" style="width: 100%; margin-bottom: 1rem; justify-content: center;">
+            <i class="fas fa-download"></i> Télécharger le template TSV
+        </button>
+        
+        <!-- ⚠️ CE CHAMP EST OBLIGATOIRE -->
+        <div class="form-group">
+            <label>Fichier à importer (.tsv ou .txt)</label>
+            <input type="file" id="importFile" class="form-control" accept=".tsv,.txt,.csv">
+        </div>
+        <!-- FIN DU CHAMP OBLIGATOIRE -->
+        
+        <div class="info-banner" style="background: var(--bg-tertiary); padding: 0.75rem; border-radius: 12px; margin-bottom: 1rem; font-size: 0.8rem;">
+            <i class="fas fa-info-circle"></i> <strong>Format TSV requis :</strong><br>
+            Les colonnes doivent être séparées par des <strong>tabulations</strong> (pas de virgules).
+        </div>
+        
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" onclick="closeImportModal()" class="btn-annuler">Annuler</button>
+            <button type="button" onclick="importFamilles()" class="btn-action btn-import">📥 Importer</button>
         </div>
     </div>
+</div>
     
     <div id="progressModal" class="modal">
         <div class="modal-content" style="max-width: 400px; text-align: center;">
@@ -887,11 +880,11 @@
                 var pointsTotal = pointsAdultes + enfantsPoints.total;
                 
                 var enfantsDetails = '';
-                if (f.enfants_0_6 > 0) enfantsDetails += `<span class="badge-age">👼 0-6 mois: ${f.enfants_0_6}</span> `;
-                if (f.enfants_6_12 > 0) enfantsDetails += `<span class="badge-age">🍼 6-12 mois: ${f.enfants_6_12}</span> `;
-                if (f.enfants_12_18 > 0) enfantsDetails += `<span class="badge-age">🧒 12-18 mois: ${f.enfants_12_18}</span> `;
-                if (f.enfants_18_36 > 0) enfantsDetails += `<span class="badge-age">🧒 18-36 mois: ${f.enfants_18_36}</span> `;
-                if (f.enfants_36_60 > 0) enfantsDetails += `<span class="badge-age">👧 36-60 mois: ${f.enfants_36_60}</span> `;
+                    if (f.enfants_0_6 > 0) enfantsDetails += `<span class="badge-age">👼 0-6 mois: ${f.enfants_0_6}</span> `;
+                    if (f.enfants_6_12 > 0) enfantsDetails += `<span class="badge-age">🍼 6-12 mois: ${f.enfants_6_12}</span> `;
+                    if (f.enfants_12_18 > 0) enfantsDetails += `<span class="badge-age">🧒 12-18 mois: ${f.enfants_12_18}</span> `;
+                    if (f.enfants_18_36 > 0) enfantsDetails += `<span class="badge-age">🧒 18-36 mois: ${f.enfants_18_36}</span> `;
+                    if (f.enfants_36_60 > 0) enfantsDetails += `<span class="badge-age">👧 36-60 mois: ${f.enfants_36_60}</span> `; 
                 
                 var telephoneAffichage = f.consentement ? f.telephone : 'Non communiqué';
                 var adresseComplete = f.adresse ? f.adresse + ' ' + (f.code_postal || '') + ' ' + (f.ville || '') : 'Non renseignée';
@@ -918,15 +911,6 @@
                             <div><strong>📍 Adresse:</strong> ${escapeHtml(adresseComplete)}</div>
                         </div>
                         
-                        <div class="points-adultes">
-                            <div class="titre-section">🥗 Points adultes</div>
-                            <div class="points-detail">
-                                <div class="point-categorie"><div class="label">🥩 Protides</div><div class="value">${Math.round(pointsParCategorie)}</div></div>
-                                <div class="point-categorie"><div class="label">🥕 Accompagnement</div><div class="value">${Math.round(pointsParCategorie)}</div></div>
-                                <div class="point-categorie"><div class="label">🥛 Laitier</div><div class="value">${Math.round(pointsParCategorie)}</div></div>
-                                <div class="point-categorie"><div class="label">🍰 Dessert</div><div class="value">${Math.round(pointsParCategorie)}</div></div>
-                            </div>
-                        </div>
                         
                         ${enfantsPoints.total > 0 ? `
                         <div class="points-enfants">
@@ -935,9 +919,6 @@
                                 <div class="point-categorie"><div class="label">🥕 Accompagnement</div><div class="value">${enfantsPoints.accompagnement}</div></div>
                                 <div class="point-categorie"><div class="label">🥛 Laitier</div><div class="value">${enfantsPoints.laitier}</div></div>
                                 <div class="point-categorie"><div class="label">⭐ PALD</div><div class="value">${enfantsPoints.pald}</div></div>
-                            </div>
-                            <div style="font-size: 0.65rem; text-align: center; margin-top: 0.3rem;">
-                                <span class="badge-age">📌 Les points PALD sont répartis équitablement entre les 4 catégories</span>
                             </div>
                         </div>
                         ` : ''}
@@ -1171,131 +1152,173 @@
         }
         
         function downloadTemplate() {
-            var template = [
-                ['Nom', 'Prénom', 'Numéro de carte', 'Heure de passage', 'Adresse', 'Code postal', 'Ville', 'Nombre d\'adultes', 'Type dotation', 'enfants 0-6', 'enfants 6-12', 'enfants 12-18', 'enfants 18-36', 'enfants 36-60', 'Téléphone', 'Consentement Tél.'],
-                ['Dupont', 'Jean', 'CARD001', 'MAR 9H10', '1 rue de Paris', '75001', 'Paris', '2', 'normale', '0', '0', '1', '0', '0', '0612345678', 'true'],
-                ['Martin', 'Marie', 'CARD002', 'MER 14H30', '5 rue des Lilas', '69000', 'Lyon', '1', 'minoree', '1', '0', '0', '0', '0', '0698765432', 'false']
-            ];
-            var csv = '';
-            for (var i = 0; i < template.length; i++) {
-                csv += template[i].join(',') + '\n';
-            }
-            var blob = new Blob([csv], { type: 'text/csv' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'template_familles.csv';
-            a.click();
-            URL.revokeObjectURL(url);
-        }
+    // Utiliser des tabulations comme séparateurs
+    var template = [
+        ['Nom', 'Prénom', 'Numéro de carte', 'Heure de passage', 'Adresse', 'Code postal', 'Ville', 'Nombre d\'adultes', 'enfants 0-6', 'enfants 6-12', 'enfants 12-18', 'enfants 18-36', 'Téléphone', 'Consentement Tél.'].join('\t'),
+        ['Dupont', 'Jean', 'CARD001', 'MAR 9H10', '1 rue de Paris', '75001', 'Paris', '2', 'normale', '0', '0', '1', '0', '0', '0612345678', 'true'].join('\t'),
+        ['Martin', 'Marie', 'CARD002', 'MER 14H30', '5 rue des Lilas', '69000', 'Lyon', '1', 'minoree', '1', '0', '0', '0', '0', '0698765432', 'false'].join('\t')
+    ];
+    
+    var tsv = template.join('\n');
+    var blob = new Blob([tsv], { type: 'text/tab-separated-values' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'template_familles.tsv';
+    a.click();
+    URL.revokeObjectURL(url);
+}
         
         async function importFamilles() {
-            var file = document.getElementById('importFile').files[0];
-            if (!file) {
-                alert('Veuillez sélectionner un fichier');
-                return;
+    console.log('=== IMPORT FAMILLES ===');
+    
+    var file = document.getElementById('importFile').files[0];
+    console.log('Fichier sélectionné:', file ? file.name : 'Aucun');
+    
+    if (!file) {
+        alert('Veuillez sélectionner un fichier');
+        return;
+    }
+    
+    var progressModal = document.getElementById('progressModal');
+    var progressStatus = document.getElementById('progressStatus');
+    var progressResult = document.getElementById('progressResult');
+    
+    progressModal.style.display = 'block';
+    progressStatus.innerText = 'Lecture du fichier...';
+    progressResult.innerHTML = '';
+    
+    try {
+        var data = [];
+        var text = await file.text();
+        console.log('Contenu du fichier lu, longueur:', text.length);
+        
+        var delimiter = '\t'; // Toujours tabulation
+        var lines = text.split('\n');
+        console.log('Lignes trouvées:', lines.length);
+        
+        if (lines.length > 0) {
+            // Nettoyer les en-têtes
+            var headerParts = lines[0].split(delimiter);
+            var headers = [];
+            for (var i = 0; i < headerParts.length; i++) {
+                headers.push(headerParts[i].trim().replace(/^"|"$/g, ''));
             }
+            console.log('En-têtes détectés:', headers);
             
-            var format = document.getElementById('importFormat').value;
-            var progressModal = document.getElementById('progressModal');
-            var progressStatus = document.getElementById('progressStatus');
-            var progressResult = document.getElementById('progressResult');
-            
-            progressModal.style.display = 'block';
-            progressStatus.innerText = 'Lecture du fichier...';
-            progressResult.innerHTML = '';
-            
-            try {
-                var data = [];
-                var text = await file.text();
-                var delimiter = format === 'tsv' ? '\t' : ',';
-                var lines = text.split('\n');
+            // Lignes de données
+            for (var i = 1; i < lines.length; i++) {
+                var line = lines[i].trim();
+                if (line === '') continue;
                 
-                if (lines.length > 0) {
-                    var headerParts = lines[0].split(delimiter);
-                    var headers = [];
-                    for (var i = 0; i < headerParts.length; i++) {
-                        headers.push(headerParts[i].trim());
-                    }
-                    
-                    for (var i = 1; i < lines.length; i++) {
-                        if (!lines[i].trim()) continue;
-                        var values = lines[i].split(delimiter);
-                        var row = {};
-                        for (var j = 0; j < headers.length && j < values.length; j++) {
-                            var value = values[j].trim().replace(/^"|"$/g, '');
-                            if (value === 'NULL' || value === 'null' || value === '') value = '';
-                            row[headers[j]] = value;
-                        }
-                        if (Object.keys(row).length > 0) data.push(row);
-                    }
+                var values = line.split(delimiter);
+                var row = {};
+                for (var j = 0; j < headers.length && j < values.length; j++) {
+                    var value = values[j].trim().replace(/^"|"$/g, '');
+                    if (value === 'NULL' || value === 'null' || value === '') value = '';
+                    row[headers[j]] = value;
                 }
-                
-                progressStatus.innerText = 'Conversion : ' + data.length + ' lignes...';
-                
-                var famillesImport = [];
-                for (var i = 0; i < data.length; i++) {
-                    var row = data[i];
-                    var nom = row['Nom'] || '';
-                    var prenom = row['Prénom'] || '';
-                    var numeroCarte = row['Numéro de carte'] || '';
-                    var heurePassage = row['Heure de passage'] || '';
-                    var adresse = row['Adresse'] || '';
-                    var codePostal = row['Code postal'] || '';
-                    var ville = row['Ville'] || '';
-                    var nbAdultes = parseInt(row['Nombre d\'adultes']) || 1;
-                    var typeDotation = row['Type dotation'] || 'normale';
-                    var enfants0_6 = parseInt(row['enfants 0-6']) || 0;
-                    var enfants6_12 = parseInt(row['enfants 6-12']) || 0;
-                    var enfants12_18 = parseInt(row['enfants 12-18']) || 0;
-                    var enfants18_36 = parseInt(row['enfants 18-36']) || 0;
-                    var enfants36_60 = parseInt(row['enfants 36-60']) || 0;
-                    var telephone = row['Téléphone'] || '';
-                    var consentementTel = row['Consentement Tél.'] || '';
-                    var consentementBool = (consentementTel === 'true' || consentementTel === 'TRUE' || consentementTel === '1');
-                    
-                    if (nom && prenom && numeroCarte) {
-                        famillesImport.push({
-                            nom: nom, prenom: prenom, numero_carte: numeroCarte, heure_passage: heurePassage,
-                            adresse: adresse, code_postal: codePostal, ville: ville, nb_adultes: nbAdultes,
-                            type_dotation: typeDotation, enfants_0_6: enfants0_6, enfants_6_12: enfants6_12,
-                            enfants_12_18: enfants12_18, enfants_18_36: enfants18_36, enfants_36_60: enfants36_60,
-                            telephone: consentementBool ? telephone : '', consentement: consentementBool
-                        });
-                    }
+                if (Object.keys(row).length > 0) {
+                    data.push(row);
                 }
-                
-                if (famillesImport.length === 0) {
-                    throw new Error('Aucune donnée valide');
-                }
-                
-                progressStatus.innerText = 'Envoi des données (' + famillesImport.length + ' familles)...';
-                
-                var response = await fetch('/api/admin/familles/import', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ campagne_id: campagneActive.id, data: famillesImport })
-                });
-                
-                var result = await response.json();
-                
-                if (result.success) {
-                    progressResult.innerHTML = '<div style="color: #28a745;">✅ Import terminé !<br>' + result.successCount + ' familles importées</div>';
-                    setTimeout(function() {
-                        closeProgressModal();
-                        closeImportModal();
-                        selectCampagne(campagneActive.id);
-                    }, 2000);
-                } else {
-                    throw new Error(result.error);
-                }
-                
-            } catch (error) {
-                console.error('Erreur import:', error);
-                progressResult.innerHTML = '<div style="color: #dc3545;">❌ Erreur: ' + error.message + '</div>';
-                setTimeout(function() { closeProgressModal(); }, 3000);
             }
         }
+        
+        console.log('Lignes de données:', data.length);
+        
+        if (data.length === 0) {
+            throw new Error('Aucune donnée trouvée dans le fichier');
+        }
+        
+        progressStatus.innerText = 'Conversion : ' + data.length + ' lignes...';
+        
+        var famillesImport = [];
+        for (var i = 0; i < data.length; i++) {
+            var row = data[i];
+            
+            // Mapping des colonnes
+            var nom = row['Nom'] || row['nom'] || '';
+            var prenom = row['Prénom'] || row['prenom'] || '';
+            var numeroCarte = row['Numéro de carte'] || row['Numero de carte'] || row['numero_carte'] || '';
+            var heurePassage = row['Heure de passage'] || row['heure_passage'] || '';
+            var adresse = row['Adresse'] || row['adresse'] || '';
+            var codePostal = row['Code postal'] || row['code_postal'] || '';
+            var ville = row['Ville'] || row['ville'] || '';
+            var nbAdultes = parseInt(row['Nombre d\'adultes'] || row['nb_adultes'] || 1);
+            var typeDotation = row['Type dotation'] || row['type_dotation'] || 'normale';
+            
+            // Enfants
+            var enfants0_6 = parseInt(row['enfants 0-6'] || row['enfants_0_6'] || row['0-6 mois'] || row['Enfants 0-6'] || 0);
+            var enfants6_12 = parseInt(row['enfants 6-12'] || row['enfants_6_12'] || row['6-12 mois'] || row['Enfants 6-12'] || 0);
+            var enfants12_18 = parseInt(row['enfants 12-18'] || row['enfants_12_18'] || row['12-18 mois'] || row['Enfants 12-18'] || 0);
+            var enfants18_36 = parseInt(row['enfants 18-36'] || row['enfants_18_36'] || row['18-36 mois'] || row['Enfants 18-36'] || 0);
+            var enfants36_60 = parseInt(row['enfants 36-60'] || row['enfants_36_60'] || row['36-60 mois'] || row['Enfants 36-60'] || 0);
+            
+            var telephone = row['Téléphone'] || row['telephone'] || '';
+            var consentementTel = row['Consentement Tél.'] || row['consentement'] || '';
+            var consentementBool = (consentementTel === 'true' || consentementTel === 'TRUE' || consentementTel === '1');
+            
+            if (nom && prenom && numeroCarte) {
+                famillesImport.push({
+                    nom: nom, 
+                    prenom: prenom, 
+                    numero_carte: numeroCarte, 
+                    heure_passage: heurePassage,
+                    adresse: adresse, 
+                    code_postal: codePostal, 
+                    ville: ville, 
+                    nb_adultes: nbAdultes,
+                    type_dotation: typeDotation, 
+                    enfants_0_6: enfants0_6, 
+                    enfants_6_12: enfants6_12,
+                    enfants_12_18: enfants12_18, 
+                    enfants_18_36: enfants18_36, 
+                    enfants_36_60: enfants36_60,
+                    telephone: consentementBool ? telephone : '', 
+                    consentement: consentementBool
+                });
+            } else {
+                console.log('Ligne ignorée - informations manquantes:', {nom, prenom, numeroCarte});
+            }
+        }
+        
+        console.log('Familles à importer:', famillesImport.length);
+        
+        if (famillesImport.length === 0) {
+            throw new Error('Aucune famille valide trouvée');
+        }
+        
+        progressStatus.innerText = 'Envoi des données (' + famillesImport.length + ' familles)...';
+        
+        var response = await fetch('/api/admin/familles/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                campagne_id: campagneActive.id, 
+                data: famillesImport 
+            })
+        });
+        
+        var result = await response.json();
+        console.log('Réponse du serveur:', result);
+        
+        if (result.success) {
+            progressResult.innerHTML = '<div style="color: #28a745;">✅ Import terminé !<br>' + result.successCount + ' familles importées</div>';
+            setTimeout(function() {
+                closeProgressModal();
+                closeImportModal();
+                selectCampagne(campagneActive.id);
+            }, 2000);
+        } else {
+            throw new Error(result.error || 'Erreur lors de l\'import');
+        }
+        
+    } catch (error) {
+        console.error('Erreur import:', error);
+        progressResult.innerHTML = '<div style="color: #dc3545;">❌ Erreur: ' + error.message + '</div>';
+        setTimeout(function() { closeProgressModal(); }, 3000);
+    }
+}
         
         function escapeHtml(text) {
             if (!text) return '';

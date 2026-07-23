@@ -7,30 +7,29 @@
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .produits-layout {
+        .produits-container {
             display: flex;
-            gap: 1.5rem;
-            flex-wrap: wrap;
+            gap: 2rem;
+            min-height: 600px;
         }
         
-        .categories-panel {
+        .categories-sidebar {
             width: 280px;
             background: var(--bg-primary);
             border-radius: 20px;
-            padding: 1rem;
-            box-shadow: var(--shadow-sm);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
             height: fit-content;
+            position: sticky;
+            top: 100px;
         }
         
-        .categories-panel h3 {
+        .categories-sidebar h3 {
             color: var(--restos-rose);
             margin-bottom: 1rem;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             border-bottom: 2px solid var(--restos-rose);
             padding-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
         }
         
         .categorie-list {
@@ -41,9 +40,9 @@
         }
         
         .categorie-list li {
-            padding: 0.6rem 0.75rem;
-            margin-bottom: 0.25rem;
-            border-radius: 10px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.2s ease;
             background: var(--bg-tertiary);
@@ -74,44 +73,14 @@
             background: rgba(255,255,255,0.3);
         }
         
-        .btn-nouveau-produit {
-            width: 100%;
-            background: var(--restos-rose);
-            color: white;
-            border: none;
-            padding: 0.6rem;
-            border-radius: 12px;
-            cursor: pointer;
+        .categorie-actions {
             margin-top: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            font-weight: 600;
-            transition: all 0.2s ease;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
         }
         
-        .btn-nouveau-produit:hover {
-            background: var(--restos-rose-fonce);
-            transform: translateY(-1px);
-        }
-        
-        .produits-panel {
+        .produits-content {
             flex: 1;
-            min-width: 300px;
-        }
-        
-        .stats-categorie {
-            background: linear-gradient(135deg, var(--restos-rose) 0%, var(--restos-rose-fonce) 100%);
-            color: white;
-            border-radius: 16px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
         }
         
         .search-bar {
@@ -186,7 +155,7 @@
             border: none;
             cursor: pointer;
             font-weight: 600;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 0.5rem;
             transition: all 0.2s ease;
@@ -229,6 +198,22 @@
         
         .btn-ajouter:hover {
             background: var(--restos-rose-fonce);
+            transform: translateY(-1px);
+        }
+        
+        .btn-annuler {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-annuler:hover {
+            background: #5a6268;
             transform: translateY(-1px);
         }
         
@@ -297,6 +282,46 @@
             color: white;
         }
         
+        .badge-min-personne {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-toggle-min-personne {
+            border: 2px solid #dc3545;
+            background: white;
+            color: #dc3545;
+            border-radius: 10px;
+            padding: 0.6rem 1rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-toggle-min-personne.actif {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-toggle-min-personne small {
+            display: block;
+            font-weight: 400;
+            font-size: 0.72rem;
+            opacity: 0.9;
+        }
+        
+        .points-total-info {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.3rem;
+        }
+        
         .produit-actions button {
             padding: 5px 10px;
             margin-left: 0.25rem;
@@ -324,6 +349,19 @@
             background: #c82333;
         }
         
+        .stats-categorie {
+            background: linear-gradient(135deg, var(--restos-rose) 0%, var(--restos-rose-fonce) 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
         .empty-state {
             text-align: center;
             padding: 2rem;
@@ -332,25 +370,60 @@
             border-radius: 16px;
         }
         
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .form-row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .points-detail {
+            background: #FFF5F8;
+            border-radius: 12px;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .point-categorie {
+            text-align: center;
+            min-width: 80px;
+        }
+        
+        .point-categorie .label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+        
+        .point-categorie .value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--restos-rose);
+        }
+        
         @media (max-width: 768px) {
-            .produits-layout {
+            .produits-container {
                 flex-direction: column;
             }
-            .categories-panel {
+            .categories-sidebar {
                 width: 100%;
+                position: static;
             }
             .search-bar {
                 flex-direction: column;
             }
-            .filters {
-                justify-content: center;
-            }
             .action-buttons {
-                justify-content: center;
+                margin-left: 0;
             }
-            .stats-categorie {
-                flex-direction: column;
-                text-align: center;
+            .form-row, .form-row-3 {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -387,6 +460,9 @@
                         <a href="/profil.html" class="dropdown-item">
                             <i class="fas fa-user-circle"></i> Mon profil
                         </a>
+                        <div class="dropdown-item" onclick="refreshPermissions()">
+                            <i class="fas fa-sync-alt"></i> Recharger mes accès
+                        </div>
                         <div class="dropdown-item">
                             <i class="fas fa-moon"></i> Mode sombre
                             <label class="switch">
@@ -398,9 +474,6 @@
                         <div class="dropdown-item" onclick="logout()">
                             <i class="fas fa-sign-out-alt"></i> Déconnexion
                         </div>
-                        <div class="dropdown-item" onclick="refreshPermissions()">
-    <i class="fas fa-sync-alt"></i> Recharger mes accès
-</div>
                     </div>
                 </div>
             </div>
@@ -408,18 +481,20 @@
             <div class="card">
                 <h2>📦 Gestion des produits</h2>
                 
-                <div class="produits-layout">
-                    <div class="categories-panel">
+                <div class="produits-container">
+                    <div class="categories-sidebar">
                         <h3><i class="fas fa-tags"></i> Catégories</h3>
                         <div id="categorie-list" class="categorie-list">
                             <div class="loading">Chargement...</div>
                         </div>
-                        <button class="btn-nouveau-produit" onclick="showAddProduitModal()">
-                            <i class="fas fa-plus"></i> Nouveau produit
-                        </button>
+                        <div class="categorie-actions">
+                            <button onclick="showAddProduitModal()" class="btn-ajouter" style="width: 100%;">
+                                <i class="fas fa-plus"></i> Nouveau produit
+                            </button>
+                        </div>
                     </div>
                     
-                    <div class="produits-panel">
+                    <div class="produits-content">
                         <div id="produits-container">
                             <div class="empty-state">
                                 <i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 1rem;"></i>
@@ -446,23 +521,17 @@
                     <div class="form-group">
                         <label>Groupe</label>
                         <select id="groupe" class="form-control">
-                            <option value="10-PROT-A">10-PROT-A (Protides ambiant)</option>
-                            <option value="10-PROT-S">10-PROT-S (Protides surgelé)</option>
-                            <option value="11-LEG-A">11-LEG-A (Légumes ambiant)</option>
-                            <option value="11-LEG-S">11-LEG-S (Légumes surgelé)</option>
-                            <option value="12-FC-A">12-FC-A (Féculents ambiant)</option>
-                            <option value="13-MIXTE-A">13-MIXTE-A (Mixte ambiant)</option>
-                            <option value="13-MIXTE-S">13-MIXTE-S (Mixte surgelé)</option>
-                            <option value="14-FRUIT-A">14-FRUIT-A (Fruits ambiant)</option>
-                            <option value="15-DESS-A">15-DESS-A (Desserts ambiant)</option>
-                            <option value="16-PL-A">16-PL-A (Produits laitiers)</option>
-                            <option value="17-BB-CC">17-BB-CC (Bébé couches)</option>
-                            <option value="17-BB-DIV">17-BB-DIV (Bébé divers)</option>
-                            <option value="17-BB-LAIT">17-BB-LAIT (Bébé lait)</option>
-                            <option value="17-BB-PP">17-BB-PP (Bébé petits pots)</option>
-                            <option value="19-CPLTA-A">19-CPLTA-A (Complément ambiant)</option>
-                            <option value="19-CPLTA-S">19-CPLTA-S (Complément surgelé)</option>
-                            <option value="20-HYG">20-HYG (Hygiène)</option>
+                            <option value="ACCOMPAGNEMENT">🥕 ACCOMPAGNEMENT</option>
+                            <option value="COMPLEMENT">📦 COMPLEMENT</option>
+                            <option value="COUCHE BÉBÉ">👶 COUCHE BÉBÉ</option>
+                            <option value="DESSERT">🍰 DESSERT</option>
+                            <option value="DIVERS BÉBÉ">🧸 DIVERS BÉBÉ</option>
+                            <option value="HYGIENE">🧼 HYGIENE</option>
+                            <option value="LAIT BÉBÉ">🍼 LAIT BÉBÉ</option>
+                            <option value="LAITIER">🥛 LAITIER</option>
+                            <option value="MIXTE">🍲 MIXTE</option>
+                            <option value="PETITS POTS BÉBÉ">🥫 PETITS POTS BÉBÉ</option>
+                            <option value="PROTIDIQUE">🥩 PROTIDIQUE</option>
                         </select>
                     </div>
                 </div>
@@ -475,7 +544,8 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Points total *</label>
-                        <input type="number" id="points_total" step="0.5" min="0" class="form-control" required>
+                        <input type="number" id="points_total" step="0.1" min="0" class="form-control" required oninput="majInfoPoints()">
+                        <div class="points-total-info" id="infoPoints"></div>
                     </div>
                     <div class="form-group">
                         <label>Mixte ?</label>
@@ -486,23 +556,35 @@
                     </div>
                 </div>
                 
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button type="button" id="btnMinParPersonne" class="btn-toggle-min-personne" onclick="toggleMinParPersonne()">
+                        <span id="iconeMinParPersonne">🔲</span>
+                        <span>
+                            Ce produit doit être donné au min. 1x par personne
+                            <small>Ex : côtes de porc — jamais moins d'1 par membre du foyer, même si les points le permettraient.</small>
+                        </span>
+                    </button>
+                    <input type="hidden" id="min_par_personne" value="0">
+                </div>
+                
                 <div id="mixteFields" style="display: none;">
                     <div class="form-row-3">
                         <div class="form-group">
                             <label>🥩 Protides</label>
-                            <input type="number" id="points_protides" step="0.5" min="0" class="form-control" value="0">
+                            <input type="number" id="points_protides" step="0.1" min="0" class="form-control" value="0">
                         </div>
                         <div class="form-group">
                             <label>🥕 Accompagnement</label>
-                            <input type="number" id="points_accompagnement" step="0.5" min="0" class="form-control" value="0">
+                            <input type="number" id="points_accompagnement" step="0.1" min="0" class="form-control" value="0">
                         </div>
                         <div class="form-group">
                             <label>🥛 Laitier</label>
-                            <input type="number" id="points_laitier" step="0.5" min="0" class="form-control" value="0">
+                            <input type="number" id="points_laitier" step="0.1" min="0" class="form-control" value="0">
                         </div>
                         <div class="form-group">
                             <label>🍰 Dessert</label>
-                            <input type="number" id="points_dessert" step="0.5" min="0" class="form-control" value="0">
+                            <input type="number" id="points_dessert" step="0.1" min="0" class="form-control" value="0">
                         </div>
                     </div>
                 </div>
@@ -523,16 +605,9 @@
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>Emplacement</label>
-                    <select id="emplacement_id" class="form-control">
-                        <option value="">-- Sélectionner --</option>
-                    </select>
-                </div>
-                
                 <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
-                    <button type="button" onclick="closeProduitModal()" class="btn-secondary">Annuler</button>
-                    <button type="submit" class="btn">💾 Enregistrer</button>
+                    <button type="button" onclick="closeProduitModal()" class="btn-annuler">Annuler</button>
+                    <button type="submit" class="btn-ajouter">💾 Enregistrer</button>
                 </div>
             </form>
         </div>
@@ -541,33 +616,25 @@
     <div id="importModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <h2>📥 Importer des produits</h2>
-            <p>Formats acceptés : CSV, Excel (.xlsx), TSV</p>
+            <p>Format accepté : <strong>TSV (tabulation)</strong> uniquement</p>
             
             <button type="button" onclick="downloadTemplate()" class="btn-action btn-template" style="width: 100%; margin-bottom: 1rem; justify-content: center;">
                 <i class="fas fa-download"></i> Télécharger le template
             </button>
             
             <div class="form-group">
-                <label>Fichier à importer</label>
-                <input type="file" id="importFile" class="form-control" accept=".csv,.xlsx,.tsv,.txt">
-            </div>
-            
-            <div class="form-group">
-                <label>Format du fichier</label>
-                <select id="importFormat" class="form-control">
-                    <option value="csv">CSV (séparateur virgule)</option>
-                    <option value="tsv">TSV (séparateur tabulation)</option>
-                    <option value="excel">Excel (.xlsx)</option>
-                </select>
+                <label>Fichier à importer (.tsv ou .txt)</label>
+                <input type="file" id="importFile" class="form-control" accept=".tsv,.txt,.csv">
             </div>
             
             <div class="info-banner" style="background: var(--bg-tertiary); padding: 0.75rem; border-radius: 12px; margin-bottom: 1rem; font-size: 0.8rem;">
-                <i class="fas fa-info-circle"></i> <strong>Format attendu :</strong><br>
-                reference, nom, groupe, points
+                <i class="fas fa-info-circle"></i> <strong>Format TSV requis :</strong><br>
+                Les colonnes doivent être séparées par des <strong>tabulations</strong> (pas de virgules).<br>
+                Téléchargez le template pour voir l'exemple.
             </div>
             
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button type="button" onclick="closeImportModal()" class="btn-secondary">Annuler</button>
+                <button type="button" onclick="closeImportModal()" class="btn-annuler">Annuler</button>
                 <button type="button" onclick="importProduits()" class="btn-action btn-import">📥 Importer</button>
             </div>
         </div>
@@ -575,8 +642,8 @@
     
     <div id="progressModal" class="modal">
         <div class="modal-content" style="max-width: 400px; text-align: center;">
-            <h2>Import en cours...</h2>
-            <div id="progressStatus">Chargement du fichier...</div>
+            <h2>Chargement...</h2>
+            <div id="progressStatus">Traitement en cours...</div>
             <div id="progressResult"></div>
         </div>
     </div>
@@ -584,7 +651,6 @@
     <script src="/js/layout.js"></script>
     <script>
         var produits = [];
-        var emplacements = [];
         var categories = [];
         var categorieActive = null;
         var searchTerm = '';
@@ -605,24 +671,6 @@
             }
         }
         
-function showImportModal() {
-    console.log('showImportModal appelée'); // Pour debug
-    var modal = document.getElementById('importModal');
-    if (modal) {
-        modal.style.display = 'block';
-    } else {
-        console.error('Modal import non trouvé');
-    }
-}
-
-function closeImportModal() {
-    var modal = document.getElementById('importModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.getElementById('importFile').value = '';
-    }
-}
-
         function buildCategories() {
             var groupes = {};
             for (var i = 0; i < produits.length; i++) {
@@ -671,23 +719,17 @@ function closeImportModal() {
         
         function getGroupeLabel(groupe) {
             var labels = {
-                '10-PROT-A': '🥩 Protides ambiant',
-                '10-PROT-S': '🥩 Protides surgelé',
-                '11-LEG-A': '🥕 Légumes ambiant',
-                '11-LEG-S': '🥕 Légumes surgelé',
-                '12-FC-A': '🥕 Féculents ambiant',
-                '13-MIXTE-A': '🍲 Mixte ambiant',
-                '13-MIXTE-S': '🍲 Mixte surgelé',
-                '14-FRUIT-A': '🍎 Fruits ambiant',
-                '15-DESS-A': '🍰 Desserts ambiant',
-                '16-PL-A': '🥛 Produits laitiers',
-                '17-BB-CC': '👶 Bébé couches',
-                '17-BB-DIV': '👶 Bébé divers',
-                '17-BB-LAIT': '👶 Bébé lait',
-                '17-BB-PP': '👶 Bébé petits pots',
-                '19-CPLTA-A': '📦 Complément ambiant',
-                '19-CPLTA-S': '📦 Complément surgelé',
-                '20-HYG': '🧼 Hygiène'
+                'PROTIDIQUE': '🥩 PROTIDIQUE',
+                'ACCOMPAGNEMENT': '🥕 ACCOMPAGNEMENT',
+                'LAITIER': '🥛 LAITIER',
+                'DESSERT': '🍰 DESSERT',
+                'MIXTE': '🍲 MIXTE',
+                'COMPLEMENT': '📦 COMPLEMENT',
+                'HYGIENE': '🧼 HYGIENE',
+                'COUCHE BÉBÉ': '👶 COUCHE BÉBÉ',
+                'DIVERS BÉBÉ': '🧸 DIVERS BÉBÉ',
+                'LAIT BÉBÉ': '🍼 LAIT BÉBÉ',
+                'PETITS POTS BÉBÉ': '🥫 PETITS POTS BÉBÉ'
             };
             return labels[groupe] || groupe;
         }
@@ -822,6 +864,10 @@ function closeImportModal() {
                 var p = filtered[i];
                 var mixteBadge = p.est_mixte ? '<span class="badge badge-mixte"><i class="fas fa-blender"></i> Mixte</span>' : '';
                 var divisibleBadge = p.est_divisible ? `<span class="badge badge-divisible"><i class="fas fa-cut"></i> Divisible (${p.nombre_unites} unités)</span>` : '';
+                var minPersonneBadge = p.min_par_personne ? '<span class="badge badge-min-personne"><i class="fas fa-user-check"></i> Min. 1/personne</span>' : '';
+                // Points formatés à 1 décimale max, sans zéro superflu (ex: 3 au lieu
+                // de 3.0, mais 3.5 reste 3.5), pour faciliter la lecture/le calcul.
+                var ptsAffiches = Math.round(parseFloat(p.points_total) * 10) / 10;
                 
                 html += `
                     <div class="produit-card">
@@ -830,14 +876,15 @@ function closeImportModal() {
                                 <span class="produit-nom">${escapeHtml(p.nom)}</span>
                                 ${mixteBadge}
                                 ${divisibleBadge}
+                                ${minPersonneBadge}
                             </div>
                             <div class="produit-details">
                                 ${p.reference ? `<i class="fas fa-barcode"></i> ${escapeHtml(p.reference)} | ` : ''}
                                 <i class="fas fa-tag"></i> ${escapeHtml(p.groupe)}
                             </div>
                         </div>
-                        <div class="produit-points-badge">
-                            ⭐ ${p.points_total} pts
+                        <div class="produit-points-badge" title="${ptsAffiches} points par unité">
+                            ⭐ ${ptsAffiches} pts
                         </div>
                         <div class="produit-actions">
                             <button onclick="editProduit(${p.id})" class="btn-edit"><i class="fas fa-edit"></i></button>
@@ -879,23 +926,64 @@ function closeImportModal() {
             displayProduits();
         }
         
-        async function loadEmplacements() {
-            var response = await fetch('/api/emplacements');
-            emplacements = await response.json();
-            var select = document.getElementById('emplacement_id');
-            select.innerHTML = '<option value="">-- Sélectionner --</option>';
-            for (var i = 0; i < emplacements.length; i++) {
-                select.innerHTML += `<option value="${emplacements[i].id}">${emplacements[i].nom}</option>`;
-            }
-        }
-        
         function showAddProduitModal() {
             document.getElementById('modalTitle').textContent = 'Ajouter un produit';
             document.getElementById('produitForm').reset();
             document.getElementById('produitId').value = '';
             document.getElementById('mixteFields').style.display = 'none';
             document.getElementById('divisibleFields').style.display = 'none';
+            definirMinParPersonne(false);
+            majInfoPoints();
             document.getElementById('produitModal').style.display = 'block';
+        }
+        
+        // ---------------------------------------------------------------
+        // Bouton "Ce produit doit être donné au min. 1x par personne" :
+        // stocké dans le champ caché #min_par_personne (0/1), envoyé au
+        // serveur avec le reste du produit, et utilisé côté distribution
+        // pour garantir qu'aucune famille ne reçoive moins de N unités de
+        // ce produit (N = son nombre de membres), quitte à dépasser
+        // légèrement le budget de points cible.
+        // ---------------------------------------------------------------
+        function definirMinParPersonne(actif) {
+            document.getElementById('min_par_personne').value = actif ? '1' : '0';
+            var btn = document.getElementById('btnMinParPersonne');
+            var icone = document.getElementById('iconeMinParPersonne');
+            if (actif) {
+                btn.classList.add('actif');
+                icone.textContent = '✅';
+            } else {
+                btn.classList.remove('actif');
+                icone.textContent = '🔲';
+            }
+        }
+        
+        function toggleMinParPersonne() {
+            var actuel = document.getElementById('min_par_personne').value === '1';
+            definirMinParPersonne(!actuel);
+        }
+        
+        // Petite aide de calcul sous le champ "Points total" : rappelle le
+        // barème (1 adulte -> 12 pts, 2+ adultes -> nb_adultes x 10 pts) et
+        // combien d'unités de CE produit correspondent au budget d'une
+        // famille de 4, pour évaluer rapidement le "poids" du produit.
+        function majInfoPoints() {
+            var el = document.getElementById('infoPoints');
+            if (!el) return;
+            var pts = parseFloat(document.getElementById('points_total').value);
+            if (!pts || pts <= 0) {
+                el.textContent = 'Barème : 1 adulte = 12 pts, 2+ adultes = nb adultes × 10 pts';
+                return;
+            }
+            var pourFamille4 = (4 * 10) / pts;
+            var pourPersonneSeule = 12 / pts;
+            el.textContent = 'Barème : 1 adulte = 12 pts, 2+ adultes = nb adultes × 10 pts • '
+                + '≈ ' + arrondiAffichage(pourPersonneSeule) + ' unité(s) pour 1 pers. seule, '
+                + arrondiAffichage(pourFamille4) + ' pour une famille de 4';
+        }
+        
+        function arrondiAffichage(n) {
+            return Math.round(n * 10) / 10;
         }
         
         async function editProduit(id) {
@@ -907,6 +995,8 @@ function closeImportModal() {
                 }
             }
             if (!produit) return;
+            
+            console.log('📝 Édition du produit:', produit);
             
             document.getElementById('modalTitle').textContent = 'Modifier le produit';
             document.getElementById('produitId').value = produit.id;
@@ -921,14 +1011,20 @@ function closeImportModal() {
             document.getElementById('points_accompagnement').value = produit.points_accompagnement || 0;
             document.getElementById('points_laitier').value = produit.points_laitier || 0;
             document.getElementById('points_dessert').value = produit.points_dessert || 0;
-            document.getElementById('emplacement_id').value = produit.emplacement_id || '';
+            definirMinParPersonne(!!produit.min_par_personne);
+            majInfoPoints();
             
             if (produit.est_mixte) {
                 document.getElementById('mixteFields').style.display = 'block';
+            } else {
+                document.getElementById('mixteFields').style.display = 'none';
             }
             if (produit.est_divisible) {
                 document.getElementById('divisibleFields').style.display = 'block';
+            } else {
+                document.getElementById('divisibleFields').style.display = 'none';
             }
+            
             document.getElementById('produitModal').style.display = 'block';
         }
         
@@ -946,7 +1042,11 @@ function closeImportModal() {
         document.getElementById('produitForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            console.log('=== SOUMISSION FORMULAIRE PRODUIT ===');
+            
             var id = document.getElementById('produitId').value;
+            console.log('ID du produit:', id);
+            
             var data = {
                 reference: document.getElementById('reference').value,
                 nom: document.getElementById('nom').value,
@@ -959,25 +1059,43 @@ function closeImportModal() {
                 points_accompagnement: parseFloat(document.getElementById('points_accompagnement').value) || 0,
                 points_laitier: parseFloat(document.getElementById('points_laitier').value) || 0,
                 points_dessert: parseFloat(document.getElementById('points_dessert').value) || 0,
-                emplacement_id: document.getElementById('emplacement_id').value || null
+                min_par_personne: document.getElementById('min_par_personne').value === '1'
             };
+            
+            console.log('Données envoyées:', data);
             
             var url = id ? '/api/admin/produits/' + id : '/api/admin/produits';
             var method = id ? 'PUT' : 'POST';
             
-            var response = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            
-            if (response.ok) {
-                closeProduitModal();
-                loadProduits();
-            } else {
-                var error = await response.json();
-                alert('Erreur: ' + (error.error || 'Erreur lors de l\'enregistrement'));
+            try {
+                var response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                var result = await response.json();
+                console.log('Réponse:', result);
+                
+                if (response.ok) {
+                    alert(id ? '✅ Produit modifié avec succès !' : '✅ Produit créé avec succès !');
+                    closeProduitModal();
+                    loadProduits();
+                } else {
+                    alert('❌ Erreur: ' + (result.error || 'Erreur lors de l\'enregistrement'));
+                }
+            } catch (error) {
+                console.error('❌ Erreur:', error);
+                alert('❌ Erreur de connexion');
             }
+        });
+        
+        document.getElementById('est_mixte').addEventListener('change', function() {
+            document.getElementById('mixteFields').style.display = this.value === '1' ? 'block' : 'none';
+        });
+        
+        document.getElementById('est_divisible').addEventListener('change', function() {
+            document.getElementById('divisibleFields').style.display = this.value === '1' ? 'block' : 'none';
         });
         
         function closeProduitModal() {
@@ -985,52 +1103,41 @@ function closeImportModal() {
         }
         
         function showImportModal() {
-    var modal = document.getElementById('importModal');
-    if (modal) {
-        modal.style.display = 'flex';
-        modal.style.alignItems = 'center';
-        modal.style.justifyContent = 'center';
-    }
-}
-
-function closeImportModal() {
-    var modal = document.getElementById('importModal');
-    if (modal) {
-        modal.style.display = 'none';
-        var fileInput = document.getElementById('importFile');
-        if (fileInput) fileInput.value = '';
-    }
-}
-
-function closeProgressModal() {
-    var modal = document.getElementById('progressModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-function exportProduits() {
-    window.location.href = '/api/produits/export';
-}
-
-function downloadTemplate() {
-    var template = [
-        ['reference', 'nom', 'groupe', 'points'],
-        ['1229', '12 BATONNETS VEGETAUX FINDUS', '10-PROT-S', '4'],
-        ['3063', 'CASSOULET 1/2 STP', '13-MIXTE-A', '1']
-    ];
-    var csv = '';
-    for (var i = 0; i < template.length; i++) {
-        csv += template[i].join(',') + '\n';
-    }
-    var blob = new Blob([csv], { type: 'text/csv' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'template_produits.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-}
+            document.getElementById('importModal').style.display = 'block';
+        }
+        
+        function closeImportModal() {
+            document.getElementById('importModal').style.display = 'none';
+            document.getElementById('importFile').value = '';
+        }
+        
+        function closeProgressModal() {
+            document.getElementById('progressModal').style.display = 'none';
+        }
+        
+        function exportProduits() {
+            window.location.href = '/api/produits/export';
+        }
+        
+        function downloadTemplate() {
+            var template = [
+                ['reference', 'nom', 'groupe', 'points'],
+                ['1229', '12 BATONNETS VEGETAUX FINDUS', 'PROTIDIQUE', '4'],
+                ['3063', 'CASSOULET 1/2 STP', 'MIXTE', '1'],
+                ['1234', 'PURÉE 4 SACHETS', 'ACCOMPAGNEMENT', '4']
+            ];
+            var csv = '';
+            for (var i = 0; i < template.length; i++) {
+                csv += template[i].join(',') + '\n';
+            }
+            var blob = new Blob([csv], { type: 'text/csv' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'template_produits.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
         
         async function importProduits() {
             var file = document.getElementById('importFile').files[0];
@@ -1039,7 +1146,6 @@ function downloadTemplate() {
                 return;
             }
             
-            var format = document.getElementById('importFormat').value;
             var progressModal = document.getElementById('progressModal');
             var progressStatus = document.getElementById('progressStatus');
             var progressResult = document.getElementById('progressResult');
@@ -1051,12 +1157,19 @@ function downloadTemplate() {
             try {
                 var produitsImport = [];
                 var text = await file.text();
-                var delimiter = format === 'tsv' ? '\t' : ',';
+                var delimiter = '\t';
                 var lines = text.split('\n');
                 
                 if (lines.length === 0) {
                     throw new Error('Fichier vide');
                 }
+                
+                var headerParts = lines[0].split(delimiter);
+                var headers = [];
+                for (var h = 0; h < headerParts.length; h++) {
+                    headers.push(headerParts[h].trim());
+                }
+                console.log('📋 En-têtes détectés:', headers);
                 
                 for (var i = 1; i < lines.length; i++) {
                     var line = lines[i].trim();
@@ -1071,39 +1184,18 @@ function downloadTemplate() {
                     var points = parseFloat(values[3]) || 0;
                     
                     if (nom && points > 0) {
-                        var estMixte = (groupe === '13-MIXTE-A' || groupe === '13-MIXTE-S') ? 1 : 0;
-                        var pointsProtides = 0;
-                        var pointsAccompagnement = 0;
-                        var pointsLaitier = 0;
-                        var pointsDessert = 0;
-                        
-                        if (groupe && (groupe === '10-PROT-A' || groupe === '10-PROT-S')) {
-                            pointsProtides = points;
-                        } else if (groupe && (groupe === '11-LEG-A' || groupe === '11-LEG-S' || groupe === '12-FC-A')) {
-                            pointsAccompagnement = points;
-                        } else if (groupe === '14-FRUIT-A' || groupe === '15-DESS-A') {
-                            pointsDessert = points;
-                        } else if (groupe === '16-PL-A') {
-                            pointsLaitier = points;
-                        } else if (estMixte) {
-                            pointsProtides = points / 2;
-                            pointsAccompagnement = points / 2;
-                        } else {
-                            pointsAccompagnement = points;
-                        }
-                        
                         produitsImport.push({
                             reference: reference,
                             nom: nom,
                             groupe: groupe,
                             points_total: points,
-                            est_mixte: estMixte,
+                            est_mixte: 0,
                             est_divisible: 0,
                             nombre_unites: 1,
-                            points_protides: pointsProtides,
-                            points_accompagnement: pointsAccompagnement,
-                            points_laitier: pointsLaitier,
-                            points_dessert: pointsDessert
+                            points_protides: 0,
+                            points_accompagnement: 0,
+                            points_laitier: 0,
+                            points_dessert: 0
                         });
                     }
                 }
@@ -1134,7 +1226,7 @@ function downloadTemplate() {
                 }
                 
             } catch (error) {
-                console.error('Erreur import:', error);
+                console.error('❌ Erreur import:', error);
                 progressResult.innerHTML = '<div style="color: #dc3545;">❌ Erreur: ' + error.message + '</div>';
                 setTimeout(function() { closeProgressModal(); }, 3000);
             }
@@ -1147,7 +1239,6 @@ function downloadTemplate() {
             return div.innerHTML;
         }
         
-        loadEmplacements();
         loadProduits();
     </script>
 </body>

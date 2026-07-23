@@ -70,11 +70,6 @@
             margin-left: 8px;
         }
         
-        .date-list li.active .badge-count {
-            background: rgba(255,255,255,0.3);
-            color: white;
-        }
-        
         .btn-nouvelle-livraison {
             width: 100%;
             background: var(--restos-rose);
@@ -201,22 +196,6 @@
         .btn-delete:hover {
             background: #c82333;
         }
-
-        .btn-annuler {
-    background: #6c757d;
-    color: white;
-    border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 12px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.btn-annuler:hover {
-    background: #5a6268;
-    transform: translateY(-1px);
-}
         
         .produit-details {
             display: grid;
@@ -294,17 +273,6 @@
             border-radius: 16px;
         }
         
-        .badge-age {
-            display: inline-block;
-            background: var(--bg-tertiary);
-            color: var(--restos-rose);
-            padding: 0.15rem 0.4rem;
-            border-radius: 20px;
-            font-size: 0.65rem;
-            margin: 0.15rem;
-        }
-        
-        /* Autocomplétion */
         .autocomplete-container {
             position: relative;
         }
@@ -356,6 +324,59 @@
         .required {
             color: #dc3545;
         }
+        
+        .btn-annuler {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .btn-annuler:hover {
+            background: #5a6268;
+        }
+        
+        .btn-ajouter {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .btn-ajouter:hover {
+            background: var(--restos-rose-fonce);
+        }
+        
+        .btn-create-produit {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        .btn-create-produit:hover {
+            background: #138496;
+        }
+
+        .badge-emplacement {
+            font-size: 0.7rem;
+            background: #17a2b8;
+            color: white;
+            padding: 0.15rem 0.6rem;
+            border-radius: 12px;
+            margin-left: 0.5rem;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -390,6 +411,9 @@
                         <a href="/profil.html" class="dropdown-item">
                             <i class="fas fa-user-circle"></i> Mon profil
                         </a>
+                        <div class="dropdown-item" onclick="refreshPermissions()">
+                            <i class="fas fa-sync-alt"></i> Recharger mes accès
+                        </div>
                         <div class="dropdown-item">
                             <i class="fas fa-moon"></i> Mode sombre
                             <label class="switch">
@@ -401,16 +425,20 @@
                         <div class="dropdown-item" onclick="logout()">
                             <i class="fas fa-sign-out-alt"></i> Déconnexion
                         </div>
-                        <div class="dropdown-item" onclick="refreshPermissions()">
-    <i class="fas fa-sync-alt"></i> Recharger mes accès
-</div>
                     </div>
                 </div>
             </div>
             
             <div class="card">
                 <h2>🚚 Gestion des livraisons</h2>
-                
+
+                <div class="options-distribution" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; padding: 0.75rem 1rem; background: var(--bg-tertiary); border-radius: 12px;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin: 0;">
+                        <input type="checkbox" id="optionMinParPersonne" onchange="sauvegarderOptionMinParPersonne()">
+                        <span>👤 À la distribution, garantir au moins 1 produit par personne (ex : famille de 5 → 5 articles min., par catégorie)</span>
+                    </label>
+                </div>
+
                 <div class="livraison-container">
                     <div class="dates-sidebar">
                         <h3><i class="fas fa-calendar-alt"></i> Dates de livraison</h3>
@@ -442,56 +470,78 @@
             <form id="livraisonForm" enctype="multipart/form-data">
                 <input type="hidden" id="livraisonId">
                 <input type="hidden" id="produit_id">
-                <input type="hidden" id="produit_points">
-                <input type="hidden" id="produit_groupe">
                 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>📅 Date de livraison <span class="required">*</span></label>
-                        <input type="date" id="date_livraison" class="form-control" required>
-                    </div>
-                    </div>
+                <div class="form-group">
+                    <label>📅 Date de livraison <span class="required">*</span></label>
+                    <input type="date" id="date_livraison" class="form-control" required>
+                </div>
                 
                 <div class="form-group">
                     <label>📦 Produit <span class="required">*</span></label>
                     <div class="autocomplete-container">
-                        <input type="text" id="produit_search" class="form-control" placeholder="Rechercher par nom ou référence..." autocomplete="off">
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="produit_search" class="form-control" placeholder="Rechercher un produit..." autocomplete="off" style="flex: 1;">
+                            <button type="button" onclick="showAddProduitModal()" class="btn-create-produit">
+                                <i class="fas fa-plus"></i> Nouveau
+                            </button>
+                        </div>
                         <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
                     </div>
                 </div>
                 
-                <div id="produitInfo" style="display: none;" class="info-banner" style="padding: 0.75rem; border-radius: 12px; margin-bottom: 1rem; background: var(--bg-tertiary);">
+                <div id="produitInfo" style="display: none; padding: 0.75rem; border-radius: 12px; margin-bottom: 1rem; background: var(--bg-tertiary);">
                     <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
                         <span><strong>📋 Réf:</strong> <span id="info_reference"></span></span>
                         <span><strong>🏷️ Groupe:</strong> <span id="info_groupe"></span></span>
                         <span><strong>⭐ Points:</strong> <span id="info_points"></span></span>
+                        <span><strong>📍 Emplacement:</strong> <span id="info_emplacement"></span></span>
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>📊 Quantité <span class="required">*</span></label>
-                        <input type="number" id="quantite" step="1" class="form-control" placeholder="Quantité" required>
+                        <label>📦 Nombre de colis</label>
+                        <input type="number" id="nb_colis" class="form-control" min="0" step="1" value="0">
                     </div>
                     <div class="form-group">
-                        <label>⚠️ Date de péremption</label>
-                        <input type="date" id="date_peremption" class="form-control">
+                        <label>📦 Produits par colis</label>
+                        <input type="number" id="produits_par_colis" class="form-control" min="0" step="1" value="0">
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label>🔢 Numéro de lot (optionnel)</label>
-                    <input type="text" id="numero_lot" class="form-control" placeholder="Lot #">
+                    <label>📊 Total à distribuer</label>
+                    <input type="number" id="total_a_distribuer" class="form-control" min="0" step="1">
+                    <div class="small-text">Calculé automatiquement (Colis × Produits par colis) — modifiable si besoin (reste de stock, produit abîmé/manquant...)</div>
                 </div>
                 
                 <div class="form-group">
-                    <label>🌍 Provenance (optionnel)</label>
-                    <input type="text" id="provenance" class="form-control" placeholder="Pays / Région">
+                    <label>⚠️ Date de péremption</label>
+                    <input type="date" id="date_peremption" class="form-control">
                 </div>
+
+                <div class="form-group">
+    <label>📍 Emplacement <span class="required">*</span></label>
+    <select id="emplacement_id" class="form-control" required>
+        <option value="">-- Sélectionner --</option>
+        <option value="1">Ambiant 1</option>
+        <option value="2">Ambiant 2</option>
+        <option value="3">CE 1</option>
+        <option value="4">CE 2</option>
+        <option value="5">Frigo 1</option>
+        <option value="6">Frigo 2</option>
+        <option value="7">Frigo 3</option>
+        <option value="8">Frigo 4</option>
+        <option value="9">Frigo 5</option>
+        <option value="10">Frigo 6</option>
+        <option value="11">Frigo 7</option>
+        <option value="12">Lait/Oeuf</option>
+    </select>
+</div>
                 
                 <div class="form-group">
-                    <label>📝 Notes / Observations (optionnel)</label>
-                    <textarea id="notes" class="form-control" rows="2" placeholder="Informations supplémentaires..."></textarea>
+                    <label>📝 Observations</label>
+                    <textarea id="notes" class="form-control" rows="3" placeholder="Informations supplémentaires..."></textarea>
                 </div>
                 
                 <div class="form-group">
@@ -503,7 +553,82 @@
                 
                 <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
                     <button type="button" onclick="closeModal()" class="btn-annuler">Annuler</button>
-                    <button type="submit" class="btn">💾 Enregistrer</button>
+                    <button type="submit" class="btn-ajouter">💾 Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal produit -->
+    <div id="produitModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <h2 id="produitModalTitle">Ajouter un produit</h2>
+            <form id="produitForm">
+                <input type="hidden" id="produitId">
+                
+                <div class="form-group">
+                    <label>Référence</label>
+                    <input type="text" id="reference" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label>Nom du produit *</label>
+                    <input type="text" id="nom" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Groupe</label>
+                    <select id="groupe" class="form-control">
+                        <option value="ACCOMPAGNEMENT">🥕 ACCOMPAGNEMENT</option>
+                        <option value="COMPLEMENT">📦 COMPLEMENT</option>
+                        <option value="COUCHE BÉBÉ">👶 COUCHE BÉBÉ</option>
+                        <option value="DESSERT">🍰 DESSERT</option>
+                        <option value="DIVERS BÉBÉ">🧸 DIVERS BÉBÉ</option>
+                        <option value="HYGIENE">🧼 HYGIENE</option>
+                        <option value="LAIT BÉBÉ">🍼 LAIT BÉBÉ</option>
+                        <option value="LAITIER">🥛 LAITIER</option>
+                        <option value="MIXTE">🍲 MIXTE</option>
+                        <option value="PETITS POTS BÉBÉ">🥫 PETITS POTS BÉBÉ</option>
+                        <option value="PROTIDIQUE">🥩 PROTIDIQUE</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Points total *</label>
+                    <input type="number" id="points_total" step="0.5" min="0" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                        <input type="checkbox" id="min_par_personne" style="width:auto;">
+                        🔒 Obligatoire : minimum 1 par personne
+                    </label>
+                    <div class="small-text">Si coché, ce produit sera distribué à raison d'au moins 1 unité par personne du foyer (ex. un groupe de 5 recevra au minimum 5 unités), dans la limite du stock disponible.</div>
+                </div>
+
+                <!-- Emplacement -->
+                <div class="form-group">
+                    <label>📍 Emplacement <span class="required">*</span></label>
+                    <select id="emplacement_id" class="form-control" required>
+                        <option value="">-- Sélectionner --</option>
+                        <option value="1">Ambiant 1</option>
+                        <option value="2">Ambiant 2</option>
+                        <option value="3">CE 1</option>
+                        <option value="4">CE 2</option>
+                        <option value="5">Frigo 1</option>
+                        <option value="6">Frigo 2</option>
+                        <option value="7">Frigo 3</option>
+                        <option value="8">Frigo 4</option>
+                        <option value="9">Frigo 5</option>
+                        <option value="10">Frigo 6</option>
+                        <option value="11">Frigo 7</option>
+                        <option value="12">Lait/Oeuf</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
+                    <button type="button" onclick="closeProduitModal()" class="btn-annuler">Annuler</button>
+                    <button type="submit" class="btn-ajouter">💾 Enregistrer</button>
                 </div>
             </form>
         </div>
@@ -522,10 +647,48 @@
         var currentDate = null;
         var allLivraisons = {};
         var produits = [];
+        var emplacements = [];
+        var selectedProduitId = null;
+
+        // ---------------------------------------------------------------
+        // Réglage global d'affichage (case en haut de la page). NB: ce
+        // réglage n'est PAS utilisé par l'algorithme de distribution — 
+        // celui-ci se base uniquement sur le champ "min_par_personne"
+        // défini individuellement sur chaque produit (voir modal produit).
+        // ---------------------------------------------------------------
+        const CLE_MIN_PAR_PERSONNE = 'restos_option_min_par_personne';
+        function chargerOptionMinParPersonne() {
+            var checkbox = document.getElementById('optionMinParPersonne');
+            if (checkbox) checkbox.checked = localStorage.getItem(CLE_MIN_PAR_PERSONNE) === '1';
+        }
+        function sauvegarderOptionMinParPersonne() {
+            var checkbox = document.getElementById('optionMinParPersonne');
+            localStorage.setItem(CLE_MIN_PAR_PERSONNE, checkbox.checked ? '1' : '0');
+        }
+
+        // Calcul automatique du total
+        document.getElementById('nb_colis').addEventListener('input', function() {
+            calculerTotal();
+        });
+        document.getElementById('produits_par_colis').addEventListener('input', function() {
+            calculerTotal();
+        });
+        
+        function calculerTotal() {
+            var colis = parseInt(document.getElementById('nb_colis').value) || 0;
+            var parColis = parseInt(document.getElementById('produits_par_colis').value) || 0;
+            var total = colis * parColis;
+            document.getElementById('total_a_distribuer').value = total;
+        }
         
         async function loadProduits() {
             var response = await fetch('/api/produits');
             produits = await response.json();
+        }
+
+        async function loadEmplacements() {
+            var response = await fetch('/api/emplacements');
+            emplacements = await response.json();
         }
         
         async function loadLivraisons() {
@@ -537,6 +700,12 @@
             } catch (error) {
                 console.error('Erreur:', error);
             }
+        }
+
+        function getEmplacementNom(id) {
+            if (!id) return 'Non défini';
+            var e = emplacements.find(function(e) { return e.id == id; });
+            return e ? e.nom : 'Non défini';
         }
         
         function updateDateList() {
@@ -571,82 +740,85 @@
         }
         
         function displayLivraisonsDetails(date) {
-            var livraisons = allLivraisons[date];
-            var container = document.getElementById('details-container');
-            
-            if (!livraisons || livraisons.length === 0) {
-                container.innerHTML = '<div class="empty-state">Aucune livraison à cette date</div>';
-                return;
-            }
-            
-            var formattedDate = new Date(date).toLocaleDateString('fr-FR', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-            
-            var html = `
-                <div class="details-header">
-                    <h2>📦 Livraison du ${formattedDate}</h2>
-                    <button class="btn-ajouter-produit" onclick="showAddLivraisonModalWithDate('${date}')">
-                        <i class="fas fa-plus"></i> Ajouter un produit
-                    </button>
-                </div>
-                <div class="produits-grid">
-            `;
-            
-            for (var i = 0; i < livraisons.length; i++) {
-                var l = livraisons[i];
-                var isExpiring = l.date_peremption && isExpiringSoon(l.date_peremption);
-                
-                html += `
-                    <div class="produit-card">
-                        <div class="produit-header">
-                            <div>
-                                <span class="produit-nom">${escapeHtml(l.produit)}</span>
-                                ${l.reference ? `<span class="badge-age">Réf: ${escapeHtml(l.reference)}</span>` : ''}
-                                ${l.numero_lot ? `<span class="badge-age">Lot: ${escapeHtml(l.numero_lot)}</span>` : ''}
-                            </div>
-                            <div class="produit-actions">
-                                <button onclick="editLivraison(${l.id})" class="btn-edit">✏️ Modifier</button>
-                                <button onclick="deleteLivraison(${l.id})" class="btn-delete">🗑️ Supprimer</button>
-                            </div>
-                        </div>
-                        <div class="produit-details">
-                            <div class="detail-item">
-                                <span class="detail-label">📊 Quantité</span>
-                                <span class="detail-value">${l.quantite} unité(s)</span>
-                            </div>
-                            ${l.provenance ? `
-                            <div class="detail-item">
-                                <span class="detail-label">🌍 Provenance</span>
-                                <span class="detail-value">${escapeHtml(l.provenance)}</span>
-                            </div>
-                            ` : ''}
-                            ${l.date_peremption ? `
-                            <div class="detail-item">
-                                <span class="detail-label">⚠️ Péremption</span>
-                                <span class="detail-value ${isExpiring ? 'peremption' : ''}">
-                                    ${new Date(l.date_peremption).toLocaleDateString('fr-FR')}
-                                    ${isExpiring ? ' ⚠️ Bientôt expiré' : ''}
-                                </span>
-                            </div>
-                            ` : ''}
-                        </div>
-                        ${l.notes ? `<div class="produit-notes">📝 ${escapeHtml(l.notes)}</div>` : ''}
-                        ${l.image_url ? `
-                            <div class="produit-image">
-                                <img src="${l.image_url}" alt="Image produit" onclick="window.open(this.src)">
-                            </div>
-                        ` : ''}
+    var livraisons = allLivraisons[date];
+    var container = document.getElementById('details-container');
+    
+    if (!livraisons || livraisons.length === 0) {
+        container.innerHTML = '<div class="empty-state">Aucune livraison à cette date</div>';
+        return;
+    }
+    
+    var formattedDate = new Date(date).toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    
+    var html = `
+        <div class="details-header">
+            <h2>📦 Livraison du ${formattedDate}</h2>
+            <button class="btn-ajouter-produit" onclick="showAddLivraisonModalWithDate('${date}')">
+                <i class="fas fa-plus"></i> Ajouter un produit
+            </button>
+        </div>
+        <div class="produits-grid">
+    `;
+    
+    for (var i = 0; i < livraisons.length; i++) {
+        var l = livraisons[i];
+        var isExpiring = l.date_peremption && isExpiringSoon(l.date_peremption);
+        var emplacementNom = getEmplacementNom(l.emplacement_id);
+        
+        html += `
+            <div class="produit-card">
+                <div class="produit-header">
+                    <div>
+                        <span class="produit-nom">${escapeHtml(l.produit)}</span>
+                        <span class="badge-emplacement">📍 ${escapeHtml(emplacementNom)}</span>
+                        ${l.reference ? `<span class="badge-age">Réf: ${escapeHtml(l.reference)}</span>` : ''}
                     </div>
-                `;
-            }
-            
-            html += '</div>';
-            container.innerHTML = html;
-        }
+                    <div class="produit-actions">
+                        <button onclick="editLivraison(${l.id})" class="btn-edit">✏️ Modifier</button>
+                        <button onclick="deleteLivraison(${l.id})" class="btn-delete">🗑️ Supprimer</button>
+                    </div>
+                </div>
+                <div class="produit-details">
+                    <div class="detail-item">
+                        <span class="detail-label">📦 Colis</span>
+                        <span class="detail-value">${l.nb_colis || 0}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">📦 Produits/colis</span>
+                        <span class="detail-value">${l.produits_par_colis || 0}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">📊 Total</span>
+                        <span class="detail-value"><strong>${l.total_a_distribuer || 0}</strong></span>
+                    </div>
+                    ${l.date_peremption ? `
+                    <div class="detail-item">
+                        <span class="detail-label">⚠️ Péremption</span>
+                        <span class="detail-value ${isExpiring ? 'peremption' : ''}">
+                            ${new Date(l.date_peremption).toLocaleDateString('fr-FR')}
+                            ${isExpiring ? ' ⚠️ Bientôt expiré' : ''}
+                        </span>
+                    </div>
+                    ` : ''}
+                </div>
+                ${l.notes ? `<div class="produit-notes">📝 ${escapeHtml(l.notes)}</div>` : ''}
+                ${l.image_url ? `
+                    <div class="produit-image">
+                        <img src="${l.image_url}" alt="Image produit" onclick="window.open(this.src)">
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
         
         function isExpiringSoon(date) {
             var expiryDate = new Date(date);
@@ -655,7 +827,7 @@
             return diffDays <= 7 && diffDays >= 0;
         }
         
-        // Autocomplétion pour les produits
+        // Autocomplétion
         function setupAutocomplete() {
             var input = document.getElementById('produit_search');
             var dropdown = document.getElementById('autocomplete-dropdown');
@@ -680,11 +852,13 @@
                 var html = '';
                 for (var i = 0; i < filtered.length; i++) {
                     var p = filtered[i];
+                    var emplacementNom = getEmplacementNom(p.emplacement_id);
                     html += `
-                        <div class="autocomplete-item" onclick="selectProduit(${p.id}, '${escapeHtml(p.nom).replace(/'/g, "\\'")}', '${p.reference || ''}', '${p.groupe || ''}', ${p.points_total})">
+                        <div class="autocomplete-item" onclick="selectProduit(${p.id}, '${escapeHtml(p.nom).replace(/'/g, "\\'")}', '${p.reference || ''}', '${p.groupe || ''}', ${p.points_total}, ${p.emplacement_id || 'null'})">
                             <strong>${escapeHtml(p.nom)}</strong>
                             ${p.reference ? `<span class="produit-ref">Réf: ${escapeHtml(p.reference)}</span>` : ''}
                             <span class="produit-groupe">${p.groupe || '?'}</span>
+                            <span class="produit-ref">📍 ${emplacementNom}</span>
                         </div>
                     `;
                 }
@@ -699,31 +873,82 @@
             });
         }
         
-        function selectProduit(id, nom, reference, groupe, points) {
+        function selectProduit(id, nom, reference, groupe, points, emplacementId) {
             document.getElementById('produit_id').value = id;
             document.getElementById('produit_search').value = nom;
-            document.getElementById('produit_points').value = points;
-            document.getElementById('produit_groupe').value = groupe;
+            selectedProduitId = id;
             
             document.getElementById('info_reference').innerText = reference || '—';
             document.getElementById('info_groupe').innerText = groupe || '—';
             document.getElementById('info_points').innerText = points;
+            document.getElementById('info_emplacement').innerText = getEmplacementNom(emplacementId);
             document.getElementById('produitInfo').style.display = 'block';
             
             document.getElementById('autocomplete-dropdown').classList.remove('show');
         }
         
-        function showAddLivraisonModal() {
-            document.getElementById('modalTitle').textContent = 'Ajouter une livraison';
-            document.getElementById('livraisonForm').reset();
-            document.getElementById('livraisonId').value = '';
-            document.getElementById('produit_id').value = '';
-            document.getElementById('produit_points').value = '';
-            document.getElementById('produit_groupe').value = '';
-            document.getElementById('produitInfo').style.display = 'none';
-            document.getElementById('currentImage').innerHTML = '';
-            document.getElementById('livraisonModal').style.display = 'block';
+        function showAddProduitModal() {
+            document.getElementById('produitModalTitle').textContent = 'Ajouter un produit';
+            document.getElementById('produitForm').reset();
+            document.getElementById('produitId').value = '';
+            document.getElementById('produitModal').style.display = 'block';
         }
+        
+        document.getElementById('produitForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            var id = document.getElementById('produitId').value;
+            var data = {
+                reference: document.getElementById('reference').value,
+                nom: document.getElementById('nom').value,
+                groupe: document.getElementById('groupe').value,
+                points_total: parseFloat(document.getElementById('points_total').value),
+                min_par_personne: document.getElementById('min_par_personne').checked ? 1 : 0,
+                emplacement_id: document.getElementById('emplacement_id').value || null,
+                est_mixte: 0,
+                est_divisible: 0,
+                nombre_unites: 1,
+                points_protides: 0,
+                points_accompagnement: 0,
+                points_laitier: 0,
+                points_dessert: 0
+            };
+            
+            var url = id ? '/api/admin/produits/' + id : '/api/admin/produits';
+            var method = id ? 'PUT' : 'POST';
+            
+            var response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                alert(id ? '✅ Produit modifié !' : '✅ Produit créé !');
+                closeProduitModal();
+                await loadProduits();
+                await loadEmplacements();
+            } else {
+                var error = await response.json();
+                alert('Erreur: ' + (error.error || 'Erreur lors de l\'enregistrement'));
+            }
+        });
+        
+        function closeProduitModal() {
+            document.getElementById('produitModal').style.display = 'none';
+        }
+        
+        function showAddLivraisonModal() {
+    document.getElementById('modalTitle').textContent = 'Ajouter une livraison';
+    document.getElementById('livraisonForm').reset();
+    document.getElementById('livraisonId').value = '';
+    document.getElementById('produit_id').value = '';
+    document.getElementById('produitInfo').style.display = 'none';
+    document.getElementById('currentImage').innerHTML = '';
+    document.getElementById('total_a_distribuer').value = 0;
+    document.getElementById('emplacement_id').value = ''; // Reset emplacement
+    document.getElementById('livraisonModal').style.display = 'block';
+}
         
         function showAddLivraisonModalWithDate(date) {
             showAddLivraisonModal();
@@ -731,51 +956,51 @@
         }
         
         async function editLivraison(id) {
-            try {
-                var response = await fetch('/api/livraisons/' + id);
-                var l = await response.json();
-                
-                document.getElementById('modalTitle').textContent = 'Modifier la livraison';
-                document.getElementById('livraisonId').value = l.id;
-                document.getElementById('date_livraison').value = l.date_livraison;
-                document.getElementById('numero_lot').value = l.numero_lot || '';
-                document.getElementById('quantite').value = l.quantite;
-                document.getElementById('date_peremption').value = l.date_peremption || '';
-                document.getElementById('provenance').value = l.provenance || '';
-                document.getElementById('notes').value = l.notes || '';
-                document.getElementById('produit_search').value = l.produit;
-                document.getElementById('produit_id').value = l.produit_id || '';
-                
-                if (l.produit_id) {
-                    var produit = produits.find(function(p) { return p.id == l.produit_id; });
-                    if (produit) {
-                        document.getElementById('produit_points').value = produit.points_total;
-                        document.getElementById('produit_groupe').value = produit.groupe;
-                        document.getElementById('info_reference').innerText = produit.reference || '—';
-                        document.getElementById('info_groupe').innerText = produit.groupe || '—';
-                        document.getElementById('info_points').innerText = produit.points_total;
-                        document.getElementById('produitInfo').style.display = 'block';
-                    }
-                }
-                
-                if (l.image_url) {
-                    document.getElementById('currentImage').innerHTML = `
-                        <div class="form-group">
-                            <label>Image actuelle :</label>
-                            <img src="${l.image_url}" style="max-height: 100px; border-radius: 8px; display: block; margin-top: 5px;">
-                            <input type="hidden" id="existingImage" value="${l.image_url}">
-                        </div>
-                    `;
-                } else {
-                    document.getElementById('currentImage').innerHTML = '';
-                }
-                
-                document.getElementById('livraisonModal').style.display = 'block';
-            } catch (error) {
-                console.error('Erreur:', error);
-                alert('Erreur lors du chargement');
+    try {
+        var response = await fetch('/api/livraisons/' + id);
+        var l = await response.json();
+        
+        document.getElementById('modalTitle').textContent = 'Modifier la livraison';
+        document.getElementById('livraisonId').value = l.id;
+        document.getElementById('date_livraison').value = l.date_livraison;
+        document.getElementById('produit_search').value = l.produit;
+        document.getElementById('produit_id').value = l.produit_id || '';
+        document.getElementById('nb_colis').value = l.nb_colis || 0;
+        document.getElementById('produits_par_colis').value = l.produits_par_colis || 0;
+        document.getElementById('total_a_distribuer').value = l.total_a_distribuer || 0;
+        document.getElementById('date_peremption').value = l.date_peremption || '';
+        document.getElementById('notes').value = l.notes || '';
+        document.getElementById('emplacement_id').value = l.emplacement_id || ''; // Charger l'emplacement
+        selectedProduitId = l.produit_id;
+        
+        if (l.produit_id) {
+            var produit = produits.find(function(p) { return p.id == l.produit_id; });
+            if (produit) {
+                document.getElementById('info_reference').innerText = produit.reference || '—';
+                document.getElementById('info_groupe').innerText = produit.groupe || '—';
+                document.getElementById('info_points').innerText = produit.points_total;
+                document.getElementById('produitInfo').style.display = 'block';
             }
         }
+        
+        if (l.image_url) {
+            document.getElementById('currentImage').innerHTML = `
+                <div class="form-group">
+                    <label>Image actuelle :</label>
+                    <img src="${l.image_url}" style="max-height: 100px; border-radius: 8px; display: block; margin-top: 5px;">
+                    <input type="hidden" id="existingImage" value="${l.image_url}">
+                </div>
+            `;
+        } else {
+            document.getElementById('currentImage').innerHTML = '';
+        }
+        
+        document.getElementById('livraisonModal').style.display = 'block';
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur lors du chargement');
+    }
+}
         
         async function deleteLivraison(id) {
             if (confirm('Êtes-vous sûr de vouloir supprimer cette entrée ?')) {
@@ -800,60 +1025,61 @@
         }
         
         document.getElementById('livraisonForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            var produitId = document.getElementById('produit_id').value;
-            if (!produitId) {
-                alert('Veuillez sélectionner un produit dans la liste');
-                return;
+    e.preventDefault();
+    
+    var produitId = document.getElementById('produit_id').value;
+    if (!produitId) {
+        alert('Veuillez sélectionner un produit');
+        return;
+    }
+    
+    var formData = new FormData();
+    formData.append('date_livraison', document.getElementById('date_livraison').value);
+    formData.append('produit_id', produitId);
+    formData.append('nb_colis', document.getElementById('nb_colis').value || 0);
+    formData.append('produits_par_colis', document.getElementById('produits_par_colis').value || 0);
+    formData.append('total_a_distribuer', document.getElementById('total_a_distribuer').value || 0);
+    formData.append('date_peremption', document.getElementById('date_peremption').value);
+    formData.append('notes', document.getElementById('notes').value);
+    formData.append('emplacement_id', document.getElementById('emplacement_id').value || ''); // Ajout de l'emplacement
+    
+    var imageFile = document.getElementById('image').files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    } else if (document.getElementById('existingImage')) {
+        formData.append('existing_image', document.getElementById('existingImage').value);
+    }
+    
+    var id = document.getElementById('livraisonId').value;
+    var url = id ? '/api/livraisons/' + id : '/api/livraisons';
+    var method = id ? 'PUT' : 'POST';
+    
+    try {
+        var progressModal = document.getElementById('progressModal');
+        var progressStatus = document.getElementById('progressStatus');
+        progressModal.style.display = 'block';
+        progressStatus.innerText = 'Enregistrement en cours...';
+        
+        var response = await fetch(url, { method: method, body: formData });
+        var result = await response.json();
+        
+        progressModal.style.display = 'none';
+        
+        if (response.ok) {
+            closeModal();
+            await loadLivraisons();
+            if (currentDate) {
+                displayLivraisonsDetails(currentDate);
             }
-            
-            var formData = new FormData();
-            formData.append('date_livraison', document.getElementById('date_livraison').value);
-            formData.append('numero_lot', document.getElementById('numero_lot').value);
-            formData.append('produit_id', produitId);
-            formData.append('quantite', document.getElementById('quantite').value);
-            formData.append('date_peremption', document.getElementById('date_peremption').value);
-            formData.append('provenance', document.getElementById('provenance').value);
-            formData.append('notes', document.getElementById('notes').value);
-            
-            var imageFile = document.getElementById('image').files[0];
-            if (imageFile) {
-                formData.append('image', imageFile);
-            } else if (document.getElementById('existingImage')) {
-                formData.append('existing_image', document.getElementById('existingImage').value);
-            }
-            
-            var id = document.getElementById('livraisonId').value;
-            var url = id ? '/api/livraisons/' + id : '/api/livraisons';
-            var method = id ? 'PUT' : 'POST';
-            
-            try {
-                var progressModal = document.getElementById('progressModal');
-                var progressStatus = document.getElementById('progressStatus');
-                progressModal.style.display = 'block';
-                progressStatus.innerText = 'Enregistrement en cours...';
-                
-                var response = await fetch(url, { method: method, body: formData });
-                var result = await response.json();
-                
-                progressModal.style.display = 'none';
-                
-                if (response.ok) {
-                    closeModal();
-                    await loadLivraisons();
-                    if (currentDate) {
-                        displayLivraisonsDetails(currentDate);
-                    }
-                } else {
-                    alert('Erreur: ' + (result.error || 'Erreur lors de l\'enregistrement'));
-                }
-            } catch (error) {
-                console.error('Erreur:', error);
-                document.getElementById('progressModal').style.display = 'none';
-                alert('Erreur lors de l\'enregistrement');
-            }
-        });
+        } else {
+            alert('Erreur: ' + (result.error || 'Erreur lors de l\'enregistrement'));
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        document.getElementById('progressModal').style.display = 'none';
+        alert('Erreur lors de l\'enregistrement');
+    }
+});
         
         function closeModal() {
             document.getElementById('livraisonModal').style.display = 'none';
@@ -867,6 +1093,8 @@
         }
         
         async function init() {
+            chargerOptionMinParPersonne();
+            await loadEmplacements();
             await loadProduits();
             await loadLivraisons();
             setupAutocomplete();

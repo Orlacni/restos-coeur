@@ -52,26 +52,9 @@ function checkPermission(userId, permission, callback) {
         WHERE u.id = ?
     `, [userId], (err, row) => {
         if (err || !row) return callback(false);
-        // Les admins ont toutes les permissions
         if (row.role === 'admin') return callback(true);
         const permissions = row.permissions ? row.permissions.split(',') : [];
         callback(permissions.includes(permission));
-    });
-}
-
-// Fonction pour vérifier si l'utilisateur a au moins une des permissions
-function checkAnyPermission(userId, permissions, callback) {
-    db.get(`
-        SELECT r.permissions, u.role
-        FROM users u
-        JOIN roles r ON r.id = u.role_id
-        WHERE u.id = ?
-    `, [userId], (err, row) => {
-        if (err || !row) return callback(false);
-        if (row.role === 'admin') return callback(true);
-        const userPerms = row.permissions ? row.permissions.split(',') : [];
-        const hasAny = permissions.some(p => userPerms.includes(p));
-        callback(hasAny);
     });
 }
 
@@ -205,11 +188,17 @@ db.serialize(() => {
             points_accompagnement REAL DEFAULT 0,
             points_laitier REAL DEFAULT 0,
             points_dessert REAL DEFAULT 0,
-            emplacement_id INTEGER,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (emplacement_id) REFERENCES emplacements(id)
+            min_par_personne BOOLEAN DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     `);
+
+    // Migration : ajoute la colonne min_par_personne
+    db.run(`ALTER TABLE produits ADD COLUMN min_par_personne BOOLEAN DEFAULT 0`, function (err) {
+        if (err && !/duplicate column/i.test(err.message)) {
+            console.error('Migration min_par_personne :', err.message);
+        }
+    });
 
     // Table des emplacements
     db.run(`
@@ -227,16 +216,12 @@ db.serialize(() => {
         CREATE TABLE IF NOT EXISTS livraisons (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             date_livraison DATE NOT NULL,
-            fournisseur TEXT,
-            numero_lot TEXT,
-            produit_id INTEGER,
-            produit_nom TEXT,
-            produit_reference TEXT,
-            produit_groupe TEXT,
-            produit_points INTEGER DEFAULT 0,
-            quantite INTEGER NOT NULL,
+            produit_id INTEGER NOT NULL,
+            produit_nom TEXT NOT NULL,
+            nb_colis INTEGER,
+            produits_par_colis INTEGER,
+            total_a_distribuer INTEGER,
             date_peremption DATE,
-            provenance TEXT,
             notes TEXT,
             image_url TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -244,6 +229,19 @@ db.serialize(() => {
             FOREIGN KEY (produit_id) REFERENCES produits(id)
         )
     `);
+
+    // Migration : ajoute la colonne emplacement_id dans livraisons
+    db.run(`ALTER TABLE livraisons ADD COLUMN emplacement_id INTEGER REFERENCES emplacements(id)`, function (err) {
+        if (err) {
+            if (!err.message.includes('duplicate column name')) {
+                console.error('⚠️ Erreur migration emplacement_id:', err.message);
+            } else {
+                console.log('✅ Colonne emplacement_id déjà existante dans livraisons');
+            }
+        } else {
+            console.log('✅ Colonne emplacement_id ajoutée avec succès à livraisons');
+        }
+    });
 
     // Table des créneaux (planning)
     db.run(`
@@ -320,10 +318,13 @@ db.serialize(() => {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             campagne_id INTEGER NOT NULL,
             date_distribution DATE NOT NULL,
-            besoins TEXT,
+            periode TEXT,
+            livraison_ids TEXT,
+            besoins_json TEXT,
+            ventilation_json TEXT,
             statut TEXT DEFAULT 'prepare',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             created_by INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (campagne_id) REFERENCES campagnes(id)
         )
     `);
@@ -337,11 +338,10 @@ db.serialize(() => {
     // Insertion des emplacements par défaut
     const defaultEmplacements = [
         'Ambiant 1', 'Ambiant 2', 'CE 1', 'CE 2',
-        'Frigo 1', 'Frigo 2', 'Frigo 3', 'Frigo 4', 'Frigo 5', 'Frigo 6', 'Frigo 7',
-        'Hygiène'
+        'Frigo 1', 'Frigo 2', 'Frigo 3', 'Frigo 4', 'Frigo 5', 'Frigo 6', 'Frigo 7'
     ];
     defaultEmplacements.forEach((nom, index) => {
-        const type = nom.startsWith('Frigo') ? 'frigo' : (nom === 'Hygiène' ? 'hygiene' : 'ambiant');
+        const type = nom.startsWith('Frigo') ? 'frigo' : 'ambiant';
         db.run(`INSERT OR IGNORE INTO emplacements (nom, type, ordre) VALUES (?, ?, ?)`, [nom, type, index]);
     });
 
@@ -530,7 +530,7 @@ app.get('/api/user/permissions', (req, res) => {
                 permissions = permissions.map(p => p.trim());
             }
             
-            const basePermissions = ['accueil', 'informations', 'messagerie', 'planning'];
+            const basePermissions = ['accueil', 'informations', 'profil', 'messagerie'];
             const allPermissions = [...new Set([...basePermissions, ...permissions])];
             
             res.json({ permissions: allPermissions });
@@ -928,6 +928,7 @@ app.get('/api/produits', (req, res) => {
     
     db.all('SELECT * FROM produits ORDER BY nom', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
+        console.log('📦 Produits envoyés:', rows.length);
         res.json(rows);
     });
 });
@@ -947,13 +948,13 @@ app.post('/api/admin/produits', (req, res) => {
     }
     
     const { reference, nom, groupe, points_total, est_mixte, est_divisible, nombre_unites,
-            points_protides, points_accompagnement, points_laitier, points_dessert, emplacement_id } = req.body;
+            points_protides, points_accompagnement, points_laitier, points_dessert, min_par_personne } = req.body;
     
     db.run(`INSERT INTO produits (reference, nom, groupe, points_total, est_mixte, est_divisible, nombre_unites,
-            points_protides, points_accompagnement, points_laitier, points_dessert, emplacement_id)
+            points_protides, points_accompagnement, points_laitier, points_dessert, min_par_personne)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [reference || null, nom, groupe || null, points_total, est_mixte ? 1 : 0, est_divisible ? 1 : 0, nombre_unites || 1,
-         points_protides || 0, points_accompagnement || 0, points_laitier || 0, points_dessert || 0, emplacement_id || null],
+         points_protides || 0, points_accompagnement || 0, points_laitier || 0, points_dessert || 0, min_par_personne ? 1 : 0],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true, id: this.lastID });
@@ -967,13 +968,20 @@ app.put('/api/admin/produits/:id', (req, res) => {
     }
     
     const { reference, nom, groupe, points_total, est_mixte, est_divisible, nombre_unites,
-            points_protides, points_accompagnement, points_laitier, points_dessert, emplacement_id } = req.body;
+            points_protides, points_accompagnement, points_laitier, points_dessert, min_par_personne } = req.body;
+    const produitId = req.params.id;
     
-    db.run(`UPDATE produits SET reference = ?, nom = ?, groupe = ?, points_total = ?, est_mixte = ?, est_divisible = ?, nombre_unites = ?,
-            points_protides = ?, points_accompagnement = ?, points_laitier = ?, points_dessert = ?, emplacement_id = ?
+    db.run(`UPDATE produits SET 
+            reference = ?, nom = ?, groupe = ?, points_total = ?, 
+            est_mixte = ?, est_divisible = ?, nombre_unites = ?,
+            points_protides = ?, points_accompagnement = ?, points_laitier = ?, points_dessert = ?,
+            min_par_personne = ?
             WHERE id = ?`,
-        [reference || null, nom, groupe || null, points_total, est_mixte ? 1 : 0, est_divisible ? 1 : 0, nombre_unites || 1,
-         points_protides || 0, points_accompagnement || 0, points_laitier || 0, points_dessert || 0, emplacement_id || null, req.params.id],
+        [reference || null, nom, groupe || null, points_total, 
+         est_mixte ? 1 : 0, est_divisible ? 1 : 0, nombre_unites || 1,
+         points_protides || 0, points_accompagnement || 0, points_laitier || 0, points_dessert || 0,
+         min_par_personne ? 1 : 0,
+         produitId],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true });
@@ -998,9 +1006,9 @@ app.get('/api/produits/export', (req, res) => {
     db.all('SELECT * FROM produits ORDER BY nom', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        let csv = 'reference,nom,groupe,points_total,est_mixte,points_protides,points_accompagnement,points_laitier,points_dessert,est_divisible,nombre_unites\n';
+        let csv = 'reference,nom,groupe,points_total,est_mixte,points_protides,points_accompagnement,points_laitier,points_dessert,est_divisible,nombre_unites,min_par_personne\n';
         for (const p of rows) {
-            csv += `"${p.reference || ''}","${p.nom}","${p.groupe || ''}",${p.points_total},${p.est_mixte ? 1 : 0},${p.points_protides || 0},${p.points_accompagnement || 0},${p.points_laitier || 0},${p.points_dessert || 0},${p.est_divisible ? 1 : 0},${p.nombre_unites || 1}\n`;
+            csv += `"${p.reference || ''}","${p.nom}","${p.groupe || ''}",${p.points_total},${p.est_mixte ? 1 : 0},${p.points_protides || 0},${p.points_accompagnement || 0},${p.points_laitier || 0},${p.points_dessert || 0},${p.est_divisible ? 1 : 0},${p.nombre_unites || 1},${p.min_par_personne ? 1 : 0}\n`;
         }
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename=produits.csv');
@@ -1025,11 +1033,12 @@ app.post('/api/admin/produits/import', (req, res) => {
     const insertProduit = (produit, callback) => {
         db.run(`INSERT INTO produits (
             reference, nom, groupe, points_total, est_mixte, est_divisible, nombre_unites,
-            points_protides, points_accompagnement, points_laitier, points_dessert
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            points_protides, points_accompagnement, points_laitier, points_dessert, min_par_personne
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [produit.reference || null, produit.nom, produit.groupe || null, produit.points_total,
              produit.est_mixte ? 1 : 0, produit.est_divisible ? 1 : 0, produit.nombre_unites || 1,
-             produit.points_protides || 0, produit.points_accompagnement || 0, produit.points_laitier || 0, produit.points_dessert || 0],
+             produit.points_protides || 0, produit.points_accompagnement || 0, produit.points_laitier || 0, produit.points_dessert || 0,
+             produit.min_par_personne ? 1 : 0],
             function(err) {
                 if (err) {
                     errorCount++;
@@ -1065,9 +1074,7 @@ app.get('/api/livraisons', (req, res) => {
         
         const formatted = rows.map(row => ({
             ...row,
-            produit: row.produit_nom,
-            reference: row.produit_reference,
-            points: row.produit_points
+            produit: row.produit_nom
         }));
         
         const grouped = {};
@@ -1102,23 +1109,31 @@ app.post('/api/livraisons', upload.single('image'), (req, res) => {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    const { date_livraison, fournisseur, numero_lot, produit_id, quantite, date_peremption, provenance, notes } = req.body;
+    const { date_livraison, produit_id, nb_colis, produits_par_colis, total_a_distribuer,
+            date_peremption, notes, emplacement_id } = req.body;
     const image_url = req.file ? `/uploads/${req.file.filename}` : null;
+
+    if (!date_livraison || !produit_id) {
+        return res.status(400).json({ error: 'La date et le produit sont obligatoires' });
+    }
     
-    db.get('SELECT nom, reference, groupe, points_total FROM produits WHERE id = ?', [produit_id], (err, produit) => {
+    db.get('SELECT nom FROM produits WHERE id = ?', [produit_id], (err, produit) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!produit) return res.status(404).json({ error: 'Produit non trouvé' });
         
         db.run(`INSERT INTO livraisons (
-            date_livraison, fournisseur, numero_lot, 
-            produit_id, produit_nom, produit_reference, produit_groupe, produit_points,
-            quantite, date_peremption, provenance, notes, image_url, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [date_livraison, fournisseur || null, numero_lot || null, 
-             produit_id, produit.nom, produit.reference || null, produit.groupe || null, produit.points_total,
-             quantite, date_peremption || null, provenance || null, notes || null, image_url, req.session.user.id],
+            date_livraison, produit_id, produit_nom,
+            nb_colis, produits_par_colis, total_a_distribuer,
+            date_peremption, notes, image_url, emplacement_id, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [date_livraison, produit_id, produit.nom,
+             nb_colis || 0, produits_par_colis || 0, total_a_distribuer || 0,
+             date_peremption || null, notes || null, image_url, emplacement_id || null, req.session.user.id],
             function(err) {
-                if (err) return res.status(500).json({ error: err.message });
+                if (err) {
+                    console.error('❌ Erreur insertion livraison:', err.message);
+                    return res.status(500).json({ error: err.message });
+                }
                 res.json({ success: true, id: this.lastID });
             }
         );
@@ -1130,24 +1145,32 @@ app.put('/api/livraisons/:id', upload.single('image'), (req, res) => {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    const { date_livraison, fournisseur, numero_lot, produit_id, quantite, date_peremption, provenance, notes } = req.body;
+    const { date_livraison, produit_id, nb_colis, produits_par_colis, total_a_distribuer,
+            date_peremption, notes, emplacement_id } = req.body;
     const image_url = req.file ? `/uploads/${req.file.filename}` : req.body.existing_image;
     const livraisonId = req.params.id;
+
+    if (!date_livraison || !produit_id) {
+        return res.status(400).json({ error: 'La date et le produit sont obligatoires' });
+    }
     
-    db.get('SELECT nom, reference, groupe, points_total FROM produits WHERE id = ?', [produit_id], (err, produit) => {
+    db.get('SELECT nom FROM produits WHERE id = ?', [produit_id], (err, produit) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!produit) return res.status(404).json({ error: 'Produit non trouvé' });
         
         db.run(`UPDATE livraisons SET 
-            date_livraison = ?, fournisseur = ?, numero_lot = ?, 
-            produit_id = ?, produit_nom = ?, produit_reference = ?, produit_groupe = ?, produit_points = ?,
-            quantite = ?, date_peremption = ?, provenance = ?, notes = ?, image_url = ?
+            date_livraison = ?, produit_id = ?, produit_nom = ?,
+            nb_colis = ?, produits_par_colis = ?, total_a_distribuer = ?,
+            date_peremption = ?, notes = ?, image_url = ?, emplacement_id = ?
             WHERE id = ?`,
-            [date_livraison, fournisseur || null, numero_lot || null, 
-             produit_id, produit.nom, produit.reference || null, produit.groupe || null, produit.points_total,
-             quantite, date_peremption || null, provenance || null, notes || null, image_url, livraisonId],
+            [date_livraison, produit_id, produit.nom,
+             nb_colis || 0, produits_par_colis || 0, total_a_distribuer || 0,
+             date_peremption || null, notes || null, image_url, emplacement_id || null, livraisonId],
             function(err) {
-                if (err) return res.status(500).json({ error: err.message });
+                if (err) {
+                    console.error('❌ Erreur mise à jour livraison:', err.message);
+                    return res.status(500).json({ error: err.message });
+                }
                 res.json({ success: true });
             }
         );
@@ -1513,61 +1536,203 @@ app.put('/api/admin/inscriptions/:id/statut', (req, res) => {
 
 // ============ ROUTES DISTRIBUTION ============
 
-app.get('/api/distribution/besoins/:campagneId', (req, res) => {
+// Récupérer toutes les distributions d'une campagne
+app.get('/api/distributions/:campagneId', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+    
+    const campagneId = req.params.campagneId;
+    
+    db.all('SELECT * FROM distributions WHERE campagne_id = ? ORDER BY date_distribution DESC', [campagneId], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// Récupérer une distribution spécifique
+app.get('/api/distributions/:id', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+    
+    db.get('SELECT * FROM distributions WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Distribution non trouvée' });
+        
+        var result = row;
+        if (row.besoins_json) {
+            try {
+                var data = JSON.parse(row.besoins_json);
+                result.besoins = data.besoins;
+                result.familles_par_personne = data.familles_par_personne;
+                result.total_familles = data.total_familles;
+                result.multiplicateur = data.multiplicateur;
+            } catch (e) {
+                console.error('Erreur parsing besoins_json:', e);
+            }
+        }
+        if (row.ventilation_json) {
+            try {
+                result.ventilation = JSON.parse(row.ventilation_json);
+            } catch (e) {
+                console.error('Erreur parsing ventilation_json:', e);
+            }
+        }
+        
+        res.json(result);
+    });
+});
+
+// Créer une nouvelle distribution
+app.post('/api/distributions', (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    const campagneId = req.params.campagneId;
+    const { campagne_id, date_distribution, periode, livraison_ids } = req.body;
     
-    db.all('SELECT * FROM familles WHERE campagne_id = ? AND actif = 1', [campagneId], (err, familles) => {
+    db.run(`INSERT INTO distributions (campagne_id, date_distribution, periode, livraison_ids, created_by)
+            VALUES (?, ?, ?, ?, ?)`,
+        [campagne_id, date_distribution, periode, JSON.stringify(livraison_ids), req.session.user.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, id: this.lastID });
+        }
+    );
+});
+
+// Sauvegarder les données d'une distribution
+app.post('/api/distributions/:id/save-data', (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+    
+    const { besoins, famillesParPersonne, totalFamilles, multiplicateur } = req.body;
+    const distributionId = req.params.id;
+    
+    const data = {
+        besoins: besoins,
+        familles_par_personne: famillesParPersonne,
+        total_familles: totalFamilles,
+        multiplicateur: multiplicateur
+    };
+    
+    db.run(`UPDATE distributions SET besoins_json = ? WHERE id = ?`,
+        [JSON.stringify(data), distributionId],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        }
+    );
+});
+
+// Supprimer une distribution
+app.delete('/api/distributions/:id', (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+    
+    db.run('DELETE FROM distributions WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+// Valider une distribution
+app.put('/api/distributions/:id/valider', (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+    
+    db.run(`UPDATE distributions SET statut = 'valide' WHERE id = ?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+// Calculer les besoins pour une distribution
+app.get('/api/distributions/:id/besoins', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+    
+    const distributionId = req.params.id;
+    
+    db.get('SELECT * FROM distributions WHERE id = ?', [distributionId], (err, distribution) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!distribution) return res.status(404).json({ error: 'Distribution non trouvée' });
+        
+        const campagneId = distribution.campagne_id;
+        const periode = distribution.periode || 'bimensuel';
+        const multiplicateur = periode === 'bimensuel' ? 2 : 1;
+        
+        db.all('SELECT * FROM familles WHERE campagne_id = ? AND actif = 1', [campagneId], (err, familles) => {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            let besoins = {
+                protides: 0,
+                accompagnement: 0,
+                laitier: 0,
+                dessert: 0
+            };
+            
+            let famillesParPersonne = {};
+            let totalFamilles = familles.length;
+            
+            for (const f of familles) {
+                const nbPersonnes = f.nb_adultes || 1;
+                const pointsParPersonne = nbPersonnes === 1 ? 6 : 5;
+                const pointsTotalParCategorie = pointsParPersonne * multiplicateur;
+                
+                besoins.protides += pointsTotalParCategorie;
+                besoins.accompagnement += pointsTotalParCategorie;
+                besoins.laitier += pointsTotalParCategorie;
+                besoins.dessert += pointsTotalParCategorie;
+                
+                if (!famillesParPersonne[nbPersonnes]) {
+                    famillesParPersonne[nbPersonnes] = 0;
+                }
+                famillesParPersonne[nbPersonnes]++;
+            }
+            
+            res.json({
+                besoins: besoins,
+                famillesParPersonne: famillesParPersonne,
+                totalFamilles: totalFamilles,
+                periode: periode,
+                multiplicateur: multiplicateur,
+                campagne_id: campagneId
+            });
+        });
+    });
+});
+
+// Récupérer les stocks disponibles (livraisons)
+app.get('/api/distribution/stocks', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+    
+    db.all(`SELECT l.*, p.groupe AS produit_groupe, p.points_total AS produit_points,
+                   p.est_divisible AS produit_est_divisible, p.nombre_unites AS produit_nombre_unites
+            FROM livraisons l
+            LEFT JOIN produits p ON p.id = l.produit_id`, [], (err, livraisons) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        let besoins = {
-            protides: 0,
-            accompagnement: 0,
-            laitier: 0,
-            dessert: 0,
-            bebe: 0,
-            hygiene: 0
-        };
-        
-        for (const f of familles) {
-            const pointsAdultes = calculerPointsAdultes(f.nb_adultes, f.type_dotation || 'normale');
-            const pointsParCategorie = pointsAdultes / 4;
+        var stocks = {};
+        for (var i = 0; i < livraisons.length; i++) {
+            var l = livraisons[i];
+            var produitId = l.produit_id;
             
-            besoins.protides += pointsParCategorie;
-            besoins.accompagnement += pointsParCategorie;
-            besoins.laitier += pointsParCategorie;
-            besoins.dessert += pointsParCategorie;
-            
-            const enfants = {
-                enfants_6_12: f.enfants_6_12 || 0,
-                enfants_12_18: f.enfants_12_18 || 0,
-                enfants_18_36: f.enfants_18_36 || 0
-            };
-            const enfantsPoints = calculerPointsEnfants(enfants);
-            
-            besoins.accompagnement += enfantsPoints.accompagnement;
-            besoins.laitier += enfantsPoints.laitier;
-            
-            const paldParCategorie = enfantsPoints.pald / 4;
-            besoins.protides += paldParCategorie;
-            besoins.accompagnement += paldParCategorie;
-            besoins.laitier += paldParCategorie;
-            besoins.dessert += paldParCategorie;
+            if (!stocks[produitId]) {
+                stocks[produitId] = {
+                    produit_id: produitId,
+                    nom: l.produit_nom,
+                    groupe: l.produit_groupe,
+                    points: l.produit_points,
+                    quantite: 0,
+                    est_divisible: l.produit_est_divisible || 0,
+                    nb_unites_par_sachet: l.produit_nombre_unites || 1,
+                    points_par_unite: 0
+                };
+            }
+            stocks[produitId].quantite += (l.total_a_distribuer || 0);
         }
         
-        besoins.protides = Math.round(besoins.protides);
-        besoins.accompagnement = Math.round(besoins.accompagnement);
-        besoins.laitier = Math.round(besoins.laitier);
-        besoins.dessert = Math.round(besoins.dessert);
-        
-        res.json({
-            familles: familles.length,
-            besoins: besoins,
-            date: new Date().toISOString().split('T')[0]
-        });
+        res.json(Object.values(stocks));
     });
 });
 
@@ -1730,7 +1895,7 @@ app.get('/api/check-auth', (req, res) => {
     });
 });
 
-// ============ ROUTES PAGES HTML (avec vérification des permissions) ============
+// ============ ROUTES PAGES HTML ============
 
 // Pages publiques
 app.get('/', (req, res) => {
@@ -1765,7 +1930,6 @@ app.get('/admin/dashboard.html', (req, res) => {
     
     checkPermission(req.session.user.id, 'dashboard', (hasPermission) => {
         if (!hasPermission && req.session.user.role !== 'admin') {
-            // Rediriger vers le dashboard bénévole
             return res.sendFile(path.join(__dirname, 'src', 'pages', 'benevole', 'dashboard.html'));
         }
         res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'dashboard.html'));
