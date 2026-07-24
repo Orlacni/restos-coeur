@@ -1,6 +1,6 @@
+const { createClient } = require('@libsql/client');
 const express = require('express');
 const session = require('express-session');
-const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
@@ -41,7 +41,10 @@ app.use(session({
 }));
 
 // Initialisation base de données
-const db = new sqlite3.Database(path.join(__dirname, 'restos.db'));
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
 
 // Fonction pour vérifier les permissions d'un utilisateur
 function checkPermission(userId, permission, callback) {
