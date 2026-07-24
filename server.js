@@ -61,333 +61,360 @@ function checkPermission(userId, permission, callback) {
     });
 }
 
-// Création des tables
-db.serialize(() => {
-    // Table des rôles personnalisés
-    db.run(`
-        CREATE TABLE IF NOT EXISTS roles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nom TEXT UNIQUE NOT NULL,
-            description TEXT,
-            permissions TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    // Insertion des rôles par défaut
-    db.run(`INSERT OR IGNORE INTO roles (id, nom, description, permissions) VALUES (1, 'admin', 'Administrateur complet', 'accueil,informations,dashboard,communication,gestion_planning,planning,livraisons,familles,produits,distribution,utilisateurs,messagerie,profil')`);
-    db.run(`INSERT OR IGNORE INTO roles (id, nom, description, permissions) VALUES (2, 'benevole', 'Bénévole standard', 'accueil,informations,planning,messagerie,profil')`);
-
-    // Table utilisateurs
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            nom TEXT NOT NULL,
-            prenom TEXT NOT NULL,
-            role TEXT NOT NULL DEFAULT 'benevole',
-            telephone TEXT,
-            age INTEGER,
-            avatar TEXT,
-            role_id INTEGER,
-            actif INTEGER DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (role_id) REFERENCES roles(id)
-        )
-    `);
-
-    // Table messages
-    db.run(`
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            titre TEXT NOT NULL,
-            contenu TEXT NOT NULL,
-            type TEXT NOT NULL,
-            date_distribution DATE,
-            image_url TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    // Table whitelist
-    db.run(`
-        CREATE TABLE IF NOT EXISTS whitelist (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            role TEXT NOT NULL DEFAULT 'benevole',
-            created_by INTEGER
-        )
-    `);
-
-    // Table des types de repas
-    db.run(`
-        CREATE TABLE IF NOT EXISTS types_repas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nom TEXT UNIQUE NOT NULL,
-            points INTEGER DEFAULT 0,
-            description TEXT,
-            actif INTEGER DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    // Table des campagnes
-    db.run(`
-        CREATE TABLE IF NOT EXISTS campagnes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            annee INTEGER NOT NULL,
-            saison TEXT NOT NULL,
-            actif INTEGER DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(annee, saison)
-        )
-    `);
-
-    // Table des familles
-    db.run(`
-        CREATE TABLE IF NOT EXISTS familles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            campagne_id INTEGER NOT NULL,
-            nom TEXT NOT NULL,
-            prenom TEXT NOT NULL,
-            numero_carte TEXT NOT NULL,
-            nb_adultes INTEGER DEFAULT 1,
-            type_dotation TEXT DEFAULT 'normale',
-            nb_repas_semaine INTEGER DEFAULT 0,
-            points INTEGER DEFAULT 0,
-            heure_passage TEXT,
-            adresse TEXT,
-            code_postal TEXT,
-            ville TEXT,
-            telephone TEXT,
-            email TEXT,
-            consentement BOOLEAN DEFAULT 1,
-            enfants_0_6 INTEGER DEFAULT 0,
-            enfants_6_12 INTEGER DEFAULT 0,
-            enfants_12_18 INTEGER DEFAULT 0,
-            enfants_18_36 INTEGER DEFAULT 0,
-            enfants_36_60 INTEGER DEFAULT 0,
-            actif INTEGER DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            created_by INTEGER,
-            FOREIGN KEY (campagne_id) REFERENCES campagnes(id)
-        )
-    `);
-
-    // Table des produits
-    db.run(`
-        CREATE TABLE IF NOT EXISTS produits (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            reference TEXT,
-            nom TEXT NOT NULL,
-            groupe TEXT,
-            points_total INTEGER DEFAULT 1,
-            est_mixte BOOLEAN DEFAULT 0,
-            est_divisible BOOLEAN DEFAULT 0,
-            nombre_unites INTEGER DEFAULT 1,
-            points_protides REAL DEFAULT 0,
-            points_accompagnement REAL DEFAULT 0,
-            points_laitier REAL DEFAULT 0,
-            points_dessert REAL DEFAULT 0,
-            min_par_personne BOOLEAN DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    // Migration : ajoute la colonne min_par_personne
-    db.run(`ALTER TABLE produits ADD COLUMN min_par_personne BOOLEAN DEFAULT 0`, function (err) {
-        if (err && !/duplicate column/i.test(err.message)) {
-            console.error('Migration min_par_personne :', err.message);
-        }
-    });
-
-    // Table des emplacements
-    db.run(`
-        CREATE TABLE IF NOT EXISTS emplacements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nom TEXT UNIQUE NOT NULL,
-            type TEXT NOT NULL,
-            ordre INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    // Table des livraisons
-    db.run(`
-        CREATE TABLE IF NOT EXISTS livraisons (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date_livraison DATE NOT NULL,
-            produit_id INTEGER NOT NULL,
-            produit_nom TEXT NOT NULL,
-            nb_colis INTEGER,
-            produits_par_colis INTEGER,
-            total_a_distribuer INTEGER,
-            date_peremption DATE,
-            notes TEXT,
-            image_url TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            created_by INTEGER,
-            FOREIGN KEY (produit_id) REFERENCES produits(id)
-        )
-    `);
-
-    // Migration : ajoute la colonne emplacement_id dans livraisons
-    db.run(`ALTER TABLE livraisons ADD COLUMN emplacement_id INTEGER REFERENCES emplacements(id)`, function (err) {
-        if (err) {
-            if (!err.message.includes('duplicate column name')) {
-                console.error('⚠️ Erreur migration emplacement_id:', err.message);
-            } else {
-                console.log('✅ Colonne emplacement_id déjà existante dans livraisons');
-            }
-        } else {
-            console.log('✅ Colonne emplacement_id ajoutée avec succès à livraisons');
-        }
-    });
-
-    // Table des créneaux (planning)
-    db.run(`
-        CREATE TABLE IF NOT EXISTS creneaux (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date_creneau DATE NOT NULL,
-            heure_debut TIME NOT NULL,
-            heure_fin TIME NOT NULL,
-            type_activite TEXT NOT NULL,
-            places_total INTEGER DEFAULT 5,
-            places_occupees INTEGER DEFAULT 0,
-            description TEXT,
-            created_by INTEGER,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    // Table des inscriptions bénévoles
-    db.run(`
-        CREATE TABLE IF NOT EXISTS inscriptions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            creneau_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            statut TEXT DEFAULT 'inscrit',
-            inscrit_le DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (creneau_id) REFERENCES creneaux(id),
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            UNIQUE(creneau_id, user_id)
-        )
-    `);
-
-    // Table des conversations (messagerie)
-    db.run(`
-        CREATE TABLE IF NOT EXISTS conversations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nom TEXT,
-            type TEXT DEFAULT 'private',
-            created_by INTEGER,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    // Table des participants
-    db.run(`
-        CREATE TABLE IF NOT EXISTS conversation_participants (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            conversation_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            last_read DATETIME,
-            joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            UNIQUE(conversation_id, user_id)
-        )
-    `);
-
-    // Table des messages de la messagerie
-    db.run(`
-        CREATE TABLE IF NOT EXISTS messages_conversation (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            conversation_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            message TEXT NOT NULL,
-            is_read INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    // Table des distributions
-    db.run(`
-        CREATE TABLE IF NOT EXISTS distributions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            campagne_id INTEGER NOT NULL,
-            date_distribution DATE NOT NULL,
-            periode TEXT,
-            livraison_ids TEXT,
-            besoins_json TEXT,
-            ventilation_json TEXT,
-            statut TEXT DEFAULT 'prepare',
-            created_by INTEGER,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (campagne_id) REFERENCES campagnes(id)
-        )
-    `);
-
-    // Insertion des campagnes par défaut
-    db.run(`INSERT OR IGNORE INTO campagnes (annee, saison) VALUES (2025, 'Hiver')`);
-    db.run(`INSERT OR IGNORE INTO campagnes (annee, saison) VALUES (2025, 'Été')`);
-    db.run(`INSERT OR IGNORE INTO campagnes (annee, saison) VALUES (2026, 'Hiver')`);
-    db.run(`INSERT OR IGNORE INTO campagnes (annee, saison) VALUES (2026, 'Été')`);
-
-    // Insertion des emplacements par défaut
-    const defaultEmplacements = [
-        'Ambiant 1', 'Ambiant 2', 'CE 1', 'CE 2',
-        'Frigo 1', 'Frigo 2', 'Frigo 3', 'Frigo 4', 'Frigo 5', 'Frigo 6', 'Frigo 7'
-    ];
-    defaultEmplacements.forEach((nom, index) => {
-        const type = nom.startsWith('Frigo') ? 'frigo' : 'ambiant';
-        db.run(`INSERT OR IGNORE INTO emplacements (nom, type, ordre) VALUES (?, ?, ?)`, [nom, type, index]);
-    });
-
-    // Insertion des types de repas par défaut
-    db.get('SELECT COUNT(*) as count FROM types_repas', [], (err, row) => {
-        if (!err && row && row.count === 0) {
-            const defaultTypesRepas = [
-                { nom: 'Protide', points: 4, description: 'Viande, poisson, œufs' },
-                { nom: 'Protides + accompagnement', points: 6, description: 'Repas complet avec féculents/légumes' },
-                { nom: 'Accompagnement 250g', points: 2, description: 'Petite portion de pâtes/riz/légumes' },
-                { nom: 'Accompagnement 500g', points: 3, description: 'Grande portion de pâtes/riz/légumes' },
-                { nom: 'Dessert', points: 2, description: 'Yaourt, fruit, gâteau' },
-                { nom: 'Produit laitier', points: 2, description: 'Lait, fromage' },
-                { nom: 'Pain', points: 1, description: 'Portion de pain' },
-                { nom: 'Boisson', points: 1, description: 'Eau, jus de fruit' }
-            ];
-            defaultTypesRepas.forEach(type => {
-                db.run(`INSERT INTO types_repas (nom, points, description) VALUES (?, ?, ?)`, 
-                    [type.nom, type.points, type.description]);
-            });
-        }
-    });
-
-    // Créer la conversation générale par défaut
-    db.run(`INSERT OR IGNORE INTO conversations (id, nom, type, created_by) VALUES (1, 'Général', 'group', 1)`);
-    db.run(`INSERT OR IGNORE INTO conversation_participants (conversation_id, user_id) SELECT 1, id FROM users WHERE id = 1`);
-});
-
-// Insertion admin par défaut
-bcrypt.hash('admin123', 10, (err, hash) => {
-    if (!err) {
-        db.run(`INSERT OR IGNORE INTO users (id, email, password, nom, prenom, role, role_id) 
-                VALUES (1, 'admin@restos.fr', ?, 'Admin', 'Système', 'admin', 1)`, [hash]);
+// ===== INITIALISATION DES TABLES AVEC TURSO =====
+async function initDatabase() {
+    console.log('📦 Initialisation des tables Turso...');
+    
+    try {
+        // ===== CRÉATION DES TABLES =====
         
-        // Ajouter l'admin à la conversation générale
-        db.run(`INSERT OR IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (1, 1)`);
+        // 1. Table des rôles
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS roles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT UNIQUE NOT NULL,
+                description TEXT,
+                permissions TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Table roles créée');
+
+        // 2. Table des utilisateurs
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                nom TEXT NOT NULL,
+                prenom TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'benevole',
+                telephone TEXT,
+                age INTEGER,
+                avatar TEXT,
+                role_id INTEGER,
+                actif INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (role_id) REFERENCES roles(id)
+            )
+        `);
+        console.log('✅ Table users créée');
+
+        // 3. Table des messages
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                titre TEXT NOT NULL,
+                contenu TEXT NOT NULL,
+                type TEXT NOT NULL,
+                date_distribution DATE,
+                image_url TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Table messages créée');
+
+        // 4. Table whitelist
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS whitelist (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                role TEXT NOT NULL DEFAULT 'benevole',
+                created_by INTEGER
+            )
+        `);
+        console.log('✅ Table whitelist créée');
+
+        // 5. Table des types de repas
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS types_repas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT UNIQUE NOT NULL,
+                points INTEGER DEFAULT 0,
+                description TEXT,
+                actif INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Table types_repas créée');
+
+        // 6. Table des campagnes
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS campagnes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                annee INTEGER NOT NULL,
+                saison TEXT NOT NULL,
+                actif INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(annee, saison)
+            )
+        `);
+        console.log('✅ Table campagnes créée');
+
+        // 7. Table des familles
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS familles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                campagne_id INTEGER NOT NULL,
+                nom TEXT NOT NULL,
+                prenom TEXT NOT NULL,
+                numero_carte TEXT NOT NULL,
+                nb_adultes INTEGER DEFAULT 1,
+                type_dotation TEXT DEFAULT 'normale',
+                nb_repas_semaine INTEGER DEFAULT 0,
+                points INTEGER DEFAULT 0,
+                heure_passage TEXT,
+                adresse TEXT,
+                code_postal TEXT,
+                ville TEXT,
+                telephone TEXT,
+                email TEXT,
+                consentement BOOLEAN DEFAULT 1,
+                enfants_0_6 INTEGER DEFAULT 0,
+                enfants_6_12 INTEGER DEFAULT 0,
+                enfants_12_18 INTEGER DEFAULT 0,
+                enfants_18_36 INTEGER DEFAULT 0,
+                enfants_36_60 INTEGER DEFAULT 0,
+                actif INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by INTEGER,
+                FOREIGN KEY (campagne_id) REFERENCES campagnes(id)
+            )
+        `);
+        console.log('✅ Table familles créée');
+
+        // 8. Table des produits
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS produits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                reference TEXT,
+                nom TEXT NOT NULL,
+                groupe TEXT,
+                points_total INTEGER DEFAULT 1,
+                est_mixte BOOLEAN DEFAULT 0,
+                est_divisible BOOLEAN DEFAULT 0,
+                nombre_unites INTEGER DEFAULT 1,
+                points_protides REAL DEFAULT 0,
+                points_accompagnement REAL DEFAULT 0,
+                points_laitier REAL DEFAULT 0,
+                points_dessert REAL DEFAULT 0,
+                min_par_personne BOOLEAN DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Table produits créée');
+
+        // 9. Table des emplacements
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS emplacements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT UNIQUE NOT NULL,
+                type TEXT NOT NULL,
+                ordre INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Table emplacements créée');
+
+        // 10. Table des livraisons
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS livraisons (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date_livraison DATE NOT NULL,
+                produit_id INTEGER NOT NULL,
+                produit_nom TEXT NOT NULL,
+                nb_colis INTEGER,
+                produits_par_colis INTEGER,
+                total_a_distribuer INTEGER,
+                date_peremption DATE,
+                notes TEXT,
+                image_url TEXT,
+                emplacement_id INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by INTEGER,
+                FOREIGN KEY (produit_id) REFERENCES produits(id)
+            )
+        `);
+        console.log('✅ Table livraisons créée');
+
+        // 11. Table des créneaux (planning)
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS creneaux (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date_creneau DATE NOT NULL,
+                heure_debut TIME NOT NULL,
+                heure_fin TIME NOT NULL,
+                type_activite TEXT NOT NULL,
+                places_total INTEGER DEFAULT 5,
+                places_occupees INTEGER DEFAULT 0,
+                description TEXT,
+                created_by INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Table creneaux créée');
+
+        // 12. Table des inscriptions bénévoles
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS inscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                creneau_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                statut TEXT DEFAULT 'inscrit',
+                inscrit_le DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (creneau_id) REFERENCES creneaux(id),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(creneau_id, user_id)
+            )
+        `);
+        console.log('✅ Table inscriptions créée');
+
+        // 13. Table des conversations (messagerie)
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT,
+                type TEXT DEFAULT 'private',
+                created_by INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Table conversations créée');
+
+        // 14. Table des participants
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS conversation_participants (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conversation_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                last_read DATETIME,
+                joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE(conversation_id, user_id)
+            )
+        `);
+        console.log('✅ Table conversation_participants créée');
+
+        // 15. Table des messages de la messagerie
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS messages_conversation (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conversation_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                message TEXT NOT NULL,
+                is_read INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+        console.log('✅ Table messages_conversation créée');
+
+        // 16. Table des distributions
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS distributions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                campagne_id INTEGER NOT NULL,
+                date_distribution DATE NOT NULL,
+                periode TEXT,
+                livraison_ids TEXT,
+                besoins_json TEXT,
+                ventilation_json TEXT,
+                statut TEXT DEFAULT 'prepare',
+                created_by INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (campagne_id) REFERENCES campagnes(id)
+            )
+        `);
+        console.log('✅ Table distributions créée');
+
+        console.log('✅ Toutes les tables sont créées ou existent déjà');
+
+        // ===== INSERTION DES DONNÉES PAR DÉFAUT =====
+        console.log('📝 Insertion des données par défaut...');
+
+        // Insérer les rôles par défaut
+        await db.execute(`
+            INSERT OR IGNORE INTO roles (id, nom, description, permissions) 
+            VALUES (1, 'admin', 'Administrateur complet', 'accueil,informations,dashboard,communication,gestion_planning,planning,livraisons,familles,produits,distribution,utilisateurs,messagerie,profil')
+        `);
+        await db.execute(`
+            INSERT OR IGNORE INTO roles (id, nom, description, permissions) 
+            VALUES (2, 'benevole', 'Bénévole standard', 'accueil,informations,planning,messagerie,profil')
+        `);
+        console.log('✅ Rôles par défaut insérés');
+
+        // Insérer les emplacements par défaut
+        const defaultEmplacements = [
+            'Ambiant 1', 'Ambiant 2', 'CE 1', 'CE 2',
+            'Frigo 1', 'Frigo 2', 'Frigo 3', 'Frigo 4', 'Frigo 5', 'Frigo 6', 'Frigo 7'
+        ];
+        for (const [index, nom] of defaultEmplacements.entries()) {
+            const type = nom.startsWith('Frigo') ? 'frigo' : 'ambiant';
+            await db.execute(`INSERT OR IGNORE INTO emplacements (nom, type, ordre) VALUES (?, ?, ?)`, [nom, type, index]);
+        }
+        console.log('✅ Emplacements par défaut insérés');
+
+        // Insérer les campagnes par défaut
+        await db.execute(`INSERT OR IGNORE INTO campagnes (annee, saison) VALUES (2025, 'Hiver')`);
+        await db.execute(`INSERT OR IGNORE INTO campagnes (annee, saison) VALUES (2025, 'Été')`);
+        await db.execute(`INSERT OR IGNORE INTO campagnes (annee, saison) VALUES (2026, 'Hiver')`);
+        await db.execute(`INSERT OR IGNORE INTO campagnes (annee, saison) VALUES (2026, 'Été')`);
+        console.log('✅ Campagnes par défaut insérées');
+
+        // Insérer les types de repas par défaut
+        const defaultTypesRepas = [
+            { nom: 'Protide', points: 4, description: 'Viande, poisson, œufs' },
+            { nom: 'Protides + accompagnement', points: 6, description: 'Repas complet avec féculents/légumes' },
+            { nom: 'Accompagnement 250g', points: 2, description: 'Petite portion de pâtes/riz/légumes' },
+            { nom: 'Accompagnement 500g', points: 3, description: 'Grande portion de pâtes/riz/légumes' },
+            { nom: 'Dessert', points: 2, description: 'Yaourt, fruit, gâteau' },
+            { nom: 'Produit laitier', points: 2, description: 'Lait, fromage' },
+            { nom: 'Pain', points: 1, description: 'Portion de pain' },
+            { nom: 'Boisson', points: 1, description: 'Eau, jus de fruit' }
+        ];
+        for (const type of defaultTypesRepas) {
+            await db.execute(
+                `INSERT OR IGNORE INTO types_repas (nom, points, description) VALUES (?, ?, ?)`,
+                [type.nom, type.points, type.description]
+            );
+        }
+        console.log('✅ Types de repas par défaut insérés');
+
+        // Insérer l'admin par défaut
+        const bcrypt = require('bcrypt');
+        const hash = await bcrypt.hash('admin123', 10);
+        await db.execute(`
+            INSERT OR IGNORE INTO users (id, email, password, nom, prenom, role, role_id) 
+            VALUES (1, 'admin@restos.fr', ?, 'Admin', 'Système', 'admin', 1)
+        `, [hash]);
+        console.log('✅ Admin par défaut inséré');
+
+        // Créer la conversation générale
+        await db.execute(`INSERT OR IGNORE INTO conversations (id, nom, type, created_by) VALUES (1, 'Général', 'group', 1)`);
+        await db.execute(`INSERT OR IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (1, 1)`);
+        console.log('✅ Conversation générale créée');
+
+        console.log('✅ Initialisation terminée avec succès !');
+        
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'initialisation:', error.message);
+        throw error;
     }
-});
+}
 
-// S'assurer que les rôles ont les bonnes permissions à chaque démarrage
-db.run(`UPDATE roles SET permissions = 'accueil,informations,dashboard,communication,gestion_planning,planning,livraisons,familles,produits,distribution,utilisateurs,messagerie,profil' WHERE id = 1`);
-db.run(`UPDATE roles SET permissions = 'accueil,informations,planning,messagerie,profil' WHERE id = 2`);
-
+// ===== APPEL DE LA FONCTION =====
+// Au démarrage, initialise la base de données
+initDatabase()
+    .then(() => {
+        console.log('✅ Base de données prête');
+    })
+    .catch((error) => {
+        console.error('❌ Échec de l\'initialisation:', error);
+        process.exit(1);
+    });
 // ============ ROUTES API ============
 
 // Vérifier whitelist
