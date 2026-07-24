@@ -40,25 +40,33 @@ app.use(session({
     cookie: { secure: false, maxAge: 3600000 }
 }));
 
-// Initialisation base de données
+// ===== CONNEXION À TURSO =====
+console.log('🔌 Connexion à Turso...');
 const db = createClient({
-  url: process.env.TURSO_DATABASE_URL,
-  authToken: process.env.TURSO_AUTH_TOKEN,
+    url: process.env.TURSO_DATABASE_URL,
+    authToken: process.env.TURSO_AUTH_TOKEN,
 });
+console.log('✅ Base de données Turso connectée');
 
-// Fonction pour vérifier les permissions d'un utilisateur
-function checkPermission(userId, permission, callback) {
-    db.get(`
-        SELECT r.permissions, u.role
-        FROM users u
-        JOIN roles r ON r.id = u.role_id
-        WHERE u.id = ?
-    `, [userId], (err, row) => {
-        if (err || !row) return callback(false);
-        if (row.role === 'admin') return callback(true);
+// ===== FONCTION CHECK PERMISSIONS (corrigée) =====
+async function checkPermission(userId, permission) {
+    try {
+        const result = await db.execute({
+            sql: `SELECT r.permissions, u.role
+                  FROM users u
+                  JOIN roles r ON r.id = u.role_id
+                  WHERE u.id = ?`,
+            args: [userId]
+        });
+        const row = result.rows[0];
+        if (!row) return false;
+        if (row.role === 'admin') return true;
         const permissions = row.permissions ? row.permissions.split(',') : [];
-        callback(permissions.includes(permission));
-    });
+        return permissions.includes(permission);
+    } catch (error) {
+        console.error('❌ Erreur checkPermission:', error);
+        return false;
+    }
 }
 
 // ===== INITIALISATION DES TABLES AVEC TURSO =====
@@ -384,7 +392,6 @@ async function initDatabase() {
         console.log('✅ Types de repas par défaut insérés');
 
         // Insérer l'admin par défaut
-        const bcrypt = require('bcrypt');
         const hash = await bcrypt.hash('admin123', 10);
         await db.execute(`
             INSERT OR IGNORE INTO users (id, email, password, nom, prenom, role, role_id) 
@@ -405,8 +412,7 @@ async function initDatabase() {
     }
 }
 
-// ===== APPEL DE LA FONCTION =====
-// Au démarrage, initialise la base de données
+// ===== APPEL DE LA FONCTION D'INITIALISATION =====
 initDatabase()
     .then(() => {
         console.log('✅ Base de données prête');
@@ -415,50 +421,88 @@ initDatabase()
         console.error('❌ Échec de l\'initialisation:', error);
         process.exit(1);
     });
+
 // ============ ROUTES API ============
 
 // Vérifier whitelist
-app.post('/api/check-whitelist', (req, res) => {
+app.post('/api/check-whitelist', async (req, res) => {
     const { email } = req.body;
-    db.get('SELECT * FROM whitelist WHERE email = ?', [email], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        const result = await db.execute({
+            sql: 'SELECT * FROM whitelist WHERE email = ?',
+            args: [email]
+        });
+        const row = result.rows[0];
         res.json({ exists: !!row, role: row ? row.role : null });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Inscription
 app.post('/api/register', async (req, res) => {
     const { email, password, nom, prenom } = req.body;
     
-    db.get('SELECT * FROM whitelist WHERE email = ?', [email], async (err, whitelistRow) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!whitelistRow) return res.status(403).json({ error: 'Email non autorisé' });
+    try {
+        const whitelistResult = await db.execute({
+            sql: 'SELECT * FROM whitelist WHERE email = ?',
+            args: [email]
+        });
+        const whitelistRow = whitelistResult.rows[0];
+        if (!whitelistRow) {
+            return res.status(403).json({ error: 'Email non autorisé' });
+        }
         
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        db.run('INSERT INTO users (email, password, nom, prenom, role, role_id) VALUES (?, ?, ?, ?, ?, ?)',
-            [email, hashedPassword, nom, prenom, 'benevole', 2],
-            function(err) {
-                if (err) return res.status(400).json({ error: 'Email déjà utilisé' });
-                
-                // Ajouter le nouvel utilisateur à la conversation générale
-                db.run(`INSERT OR IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (1, ?)`, [this.lastID]);
-                
-                res.json({ success: true, userId: this.lastID });
-            }
-        );
-    });
+        const insertResult = await db.execute({
+            sql: 'INSERT INTO users (email, password, nom, prenom, role, role_id) VALUES (?, ?, ?, ?, ?, ?)',
+            args: [email, hashedPassword, nom, prenom, 'benevole', 2]
+        });
+        
+        // Récupérer l'ID du nouvel utilisateur
+        const userResult = await db.execute({
+            sql: 'SELECT last_insert_rowid() as id'
+        });
+        const userId = userResult.rows[0].id;
+        
+        // Ajouter à la conversation générale
+        await db.execute({
+            sql: 'INSERT OR IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (1, ?)',
+            args: [userId]
+        });
+        
+        res.json({ success: true, userId: userId });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        if (error.message.includes('UNIQUE constraint failed')) {
+            res.status(400).json({ error: 'Email déjà utilisé' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
+    }
 });
 
 // Connexion
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     
-    db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
-        if (err || !user) return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+    try {
+        const result = await db.execute({
+            sql: 'SELECT * FROM users WHERE email = ?',
+            args: [email]
+        });
+        const user = result.rows[0];
+        
+        if (!user) {
+            return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+        }
         
         const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+        if (!validPassword) {
+            return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+        }
         
         req.session.user = {
             id: user.id,
@@ -469,7 +513,10 @@ app.post('/api/login', (req, res) => {
         };
         
         res.json({ success: true, role: user.role });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Déconnexion
@@ -480,13 +527,19 @@ app.post('/api/logout', (req, res) => {
 
 // ============ ROUTES PROFIL UTILISATEUR ============
 
-app.get('/api/user/profile', (req, res) => {
+app.get('/api/user/profile', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
-    db.get('SELECT id, email, nom, prenom, telephone, age, avatar FROM users WHERE id = ?', [req.session.user.id], (err, user) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(user);
-    });
+    try {
+        const result = await db.execute({
+            sql: 'SELECT id, email, nom, prenom, telephone, age, avatar FROM users WHERE id = ?',
+            args: [req.session.user.id]
+        });
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.put('/api/user/profile', upload.single('avatar'), async (req, res) => {
@@ -495,96 +548,115 @@ app.put('/api/user/profile', upload.single('avatar'), async (req, res) => {
     const { nom, prenom, telephone, age, old_password, new_password } = req.body;
     const avatar_url = req.file ? `/uploads/avatars/${req.file.filename}` : null;
     
-    let updateQuery = 'UPDATE users SET nom = ?, prenom = ?, telephone = ?, age = ?';
-    let params = [nom, prenom, telephone || null, age || null];
-    
-    if (avatar_url) {
-        updateQuery += ', avatar = ?';
-        params.push(avatar_url);
-    }
-    
-    if (new_password) {
-        const user = await new Promise((resolve, reject) => {
-            db.get('SELECT password FROM users WHERE id = ?', [req.session.user.id], (err, row) => {
-                if (err) reject(err);
-                else resolve(row);
-            });
-        });
+    try {
+        let updateQuery = 'UPDATE users SET nom = ?, prenom = ?, telephone = ?, age = ?';
+        let params = [nom, prenom, telephone || null, age || null];
         
-        const validPassword = await bcrypt.compare(old_password, user.password);
-        if (!validPassword) {
-            return res.status(401).json({ error: 'Ancien mot de passe incorrect' });
+        if (avatar_url) {
+            updateQuery += ', avatar = ?';
+            params.push(avatar_url);
         }
         
-        const hashedPassword = await bcrypt.hash(new_password, 10);
-        updateQuery += ', password = ?';
-        params.push(hashedPassword);
-    }
-    
-    updateQuery += ' WHERE id = ?';
-    params.push(req.session.user.id);
-    
-    db.run(updateQuery, params, function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+        if (new_password) {
+            const userResult = await db.execute({
+                sql: 'SELECT password FROM users WHERE id = ?',
+                args: [req.session.user.id]
+            });
+            const user = userResult.rows[0];
+            
+            const validPassword = await bcrypt.compare(old_password, user.password);
+            if (!validPassword) {
+                return res.status(401).json({ error: 'Ancien mot de passe incorrect' });
+            }
+            
+            const hashedPassword = await bcrypt.hash(new_password, 10);
+            updateQuery += ', password = ?';
+            params.push(hashedPassword);
+        }
+        
+        updateQuery += ' WHERE id = ?';
+        params.push(req.session.user.id);
+        
+        await db.execute({
+            sql: updateQuery,
+            args: params
+        });
+        
         res.json({ success: true, newPassword: !!new_password });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Récupérer les permissions de l'utilisateur connecté
-app.get('/api/user/permissions', (req, res) => {
+app.get('/api/user/permissions', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
     const userId = req.session.user.id;
     const userRole = req.session.user.role;
     
-    db.get(`SELECT role_id FROM users WHERE id = ?`, [userId], (err, user) => {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        const roleId = user ? user.role_id : null;
-        
+    try {
         if (userRole === 'admin') {
             const allPermissions = ['accueil', 'informations', 'dashboard', 'communication', 'gestion_planning', 'planning', 'livraisons', 'familles', 'produits', 'distribution', 'utilisateurs', 'messagerie', 'profil'];
             return res.json({ permissions: allPermissions });
         }
         
+        const userResult = await db.execute({
+            sql: 'SELECT role_id FROM users WHERE id = ?',
+            args: [userId]
+        });
+        const user = userResult.rows[0];
+        const roleId = user ? user.role_id : null;
+        
         if (!roleId) {
             return res.json({ permissions: ['accueil', 'informations', 'profil'] });
         }
         
-        db.get(`SELECT permissions FROM roles WHERE id = ?`, [roleId], (err, role) => {
-            if (err) return res.status(500).json({ error: err.message });
-            
-            let permissions = [];
-            if (role && role.permissions) {
-                permissions = role.permissions.split(',');
-                permissions = permissions.map(p => p.trim());
-            }
-            
-            const basePermissions = ['accueil', 'informations', 'profil', 'messagerie'];
-            const allPermissions = [...new Set([...basePermissions, ...permissions])];
-            
-            res.json({ permissions: allPermissions });
+        const roleResult = await db.execute({
+            sql: 'SELECT permissions FROM roles WHERE id = ?',
+            args: [roleId]
         });
-    });
+        const role = roleResult.rows[0];
+        
+        let permissions = [];
+        if (role && role.permissions) {
+            permissions = role.permissions.split(',').map(p => p.trim());
+        }
+        
+        const basePermissions = ['accueil', 'informations', 'profil', 'messagerie'];
+        const allPermissions = [...new Set([...basePermissions, ...permissions])];
+        
+        res.json({ permissions: allPermissions });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ ROUTES MESSAGES ============
 
-app.get('/api/messages', (req, res) => {
-    db.all('SELECT * FROM messages ORDER BY created_at DESC', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+app.get('/api/messages', async (req, res) => {
+    try {
+        const result = await db.execute('SELECT * FROM messages ORDER BY created_at DESC');
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.get('/api/distributions', (req, res) => {
-    db.all('SELECT * FROM messages WHERE type = ? ORDER BY date_distribution ASC', ['distribution'], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+app.get('/api/distributions', async (req, res) => {
+    try {
+        const result = await db.execute('SELECT * FROM messages WHERE type = ? ORDER BY date_distribution ASC', ['distribution']);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/admin/messages', upload.single('image'), (req, res) => {
+app.post('/api/admin/messages', upload.single('image'), async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -592,17 +664,19 @@ app.post('/api/admin/messages', upload.single('image'), (req, res) => {
     const { titre, contenu, type, date_distribution } = req.body;
     const image_url = req.file ? `/uploads/${req.file.filename}` : null;
     
-    db.run(`INSERT INTO messages (titre, contenu, type, date_distribution, image_url) 
-            VALUES (?, ?, ?, ?, ?)`,
-        [titre, contenu, type, date_distribution || null, image_url],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, id: this.lastID });
-        }
-    );
+    try {
+        await db.execute({
+            sql: 'INSERT INTO messages (titre, contenu, type, date_distribution, image_url) VALUES (?, ?, ?, ?, ?)',
+            args: [titre, contenu, type, date_distribution || null, image_url]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.put('/api/admin/messages/:id', upload.single('image'), (req, res) => {
+app.put('/api/admin/messages/:id', upload.single('image'), async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -610,121 +684,157 @@ app.put('/api/admin/messages/:id', upload.single('image'), (req, res) => {
     const { titre, contenu, type, date_distribution } = req.body;
     const image_url = req.file ? `/uploads/${req.file.filename}` : req.body.existing_image;
     
-    db.run(`UPDATE messages 
-            SET titre = ?, contenu = ?, type = ?, date_distribution = ?, image_url = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?`,
-        [titre, contenu, type, date_distribution || null, image_url, req.params.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        }
-    );
+    try {
+        await db.execute({
+            sql: 'UPDATE messages SET titre = ?, contenu = ?, type = ?, date_distribution = ?, image_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            args: [titre, contenu, type, date_distribution || null, image_url, req.params.id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.delete('/api/admin/messages/:id', (req, res) => {
+app.delete('/api/admin/messages/:id', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.run('DELETE FROM messages WHERE id = ?', [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        await db.execute({
+            sql: 'DELETE FROM messages WHERE id = ?',
+            args: [req.params.id]
+        });
         res.json({ success: true });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ ROUTES TYPES DE REPAS ============
 
-app.get('/api/types-repas', (req, res) => {
-    db.all('SELECT * FROM types_repas WHERE actif = 1 ORDER BY points DESC', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+app.get('/api/types-repas', async (req, res) => {
+    try {
+        const result = await db.execute('SELECT * FROM types_repas WHERE actif = 1 ORDER BY points DESC');
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.get('/api/admin/types-repas', (req, res) => {
+app.get('/api/admin/types-repas', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
-    db.all('SELECT * FROM types_repas ORDER BY points DESC', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    try {
+        const result = await db.execute('SELECT * FROM types_repas ORDER BY points DESC');
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/admin/types-repas', (req, res) => {
+app.post('/api/admin/types-repas', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
     const { nom, points, description } = req.body;
-    db.run(`INSERT INTO types_repas (nom, points, description) VALUES (?, ?, ?)`,
-        [nom, points || 0, description || null],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, id: this.lastID });
-        }
-    );
+    try {
+        await db.execute({
+            sql: 'INSERT INTO types_repas (nom, points, description) VALUES (?, ?, ?)',
+            args: [nom, points || 0, description || null]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.put('/api/admin/types-repas/:id', (req, res) => {
+app.put('/api/admin/types-repas/:id', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
     const { nom, points, description, actif } = req.body;
-    db.run(`UPDATE types_repas SET nom = ?, points = ?, description = ?, actif = ? WHERE id = ?`,
-        [nom, points || 0, description || null, actif !== undefined ? actif : 1, req.params.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        }
-    );
+    try {
+        await db.execute({
+            sql: 'UPDATE types_repas SET nom = ?, points = ?, description = ?, actif = ? WHERE id = ?',
+            args: [nom, points || 0, description || null, actif !== undefined ? actif : 1, req.params.id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.delete('/api/admin/types-repas/:id', (req, res) => {
+app.delete('/api/admin/types-repas/:id', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
     const id = req.params.id;
     
-    db.get('SELECT COUNT(*) as count FROM livraisons WHERE type_repas_id = ?', [id], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        const result = await db.execute({
+            sql: 'SELECT COUNT(*) as count FROM livraisons WHERE type_repas_id = ?',
+            args: [id]
+        });
+        const count = result.rows[0].count;
         
-        if (result.count > 0) {
+        if (count > 0) {
             return res.status(400).json({ error: 'Impossible de supprimer : ce type est utilisé dans des livraisons' });
         }
         
-        db.run('DELETE FROM types_repas WHERE id = ?', [id], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, message: 'Type de repas supprimé définitivement' });
+        await db.execute({
+            sql: 'DELETE FROM types_repas WHERE id = ?',
+            args: [id]
         });
-    });
+        res.json({ success: true, message: 'Type de repas supprimé définitivement' });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ ROUTES CAMPAGNES ============
 
-app.get('/api/campagnes', (req, res) => {
+app.get('/api/campagnes', async (req, res) => {
     if (!req.session.user) {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.all('SELECT * FROM campagnes WHERE actif = 1 ORDER BY annee DESC, saison', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    try {
+        const result = await db.execute('SELECT * FROM campagnes WHERE actif = 1 ORDER BY annee DESC, saison');
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/admin/campagnes', (req, res) => {
+app.post('/api/admin/campagnes', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
     const { annee, saison } = req.body;
-    db.run(`INSERT INTO campagnes (annee, saison) VALUES (?, ?)`, [annee, saison], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true, id: this.lastID });
-    });
+    try {
+        await db.execute({
+            sql: 'INSERT INTO campagnes (annee, saison) VALUES (?, ?)',
+            args: [annee, saison]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ ROUTES FAMILLES ============
@@ -765,20 +875,26 @@ function calculerPointsEnfants(enfants) {
     return points;
 }
 
-app.get('/api/familles/:campagneId', (req, res) => {
+app.get('/api/familles/:campagneId', async (req, res) => {
     if (!req.session.user) {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
     const campagneId = req.params.campagneId;
     
-    db.all('SELECT * FROM familles WHERE campagne_id = ? AND actif = 1 ORDER BY nom', [campagneId], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    try {
+        const result = await db.execute({
+            sql: 'SELECT * FROM familles WHERE campagne_id = ? AND actif = 1 ORDER BY nom',
+            args: [campagneId]
+        });
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/admin/familles', (req, res) => {
+app.post('/api/admin/familles', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -791,25 +907,28 @@ app.post('/api/admin/familles', (req, res) => {
     const repasSemaine = calculerRepasSemaine(nb_adultes, type_dotation || 'normale');
     const points = calculerPointsAdultes(nb_adultes, type_dotation || 'normale');
     
-    db.run(`INSERT INTO familles (
-        campagne_id, nom, prenom, numero_carte, nb_adultes, type_dotation, nb_repas_semaine, points,
-        heure_passage, adresse, code_postal, ville, telephone, email, consentement,
-        enfants_0_6, enfants_6_12, enfants_12_18, enfants_18_36, enfants_36_60,
-        created_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [campagne_id, nom, prenom, numero_carte, nb_adultes || 1, type_dotation || 'normale', repasSemaine, points,
-         heure_passage || null, adresse || null, code_postal || null, ville || null, telephone || null, email || null,
-         consentement !== false ? 1 : 0,
-         enfants_0_6 || 0, enfants_6_12 || 0, enfants_12_18 || 0, enfants_18_36 || 0, enfants_36_60 || 0,
-         req.session.user.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, id: this.lastID });
-        }
-    );
+    try {
+        await db.execute({
+            sql: `INSERT INTO familles (
+                campagne_id, nom, prenom, numero_carte, nb_adultes, type_dotation, nb_repas_semaine, points,
+                heure_passage, adresse, code_postal, ville, telephone, email, consentement,
+                enfants_0_6, enfants_6_12, enfants_12_18, enfants_18_36, enfants_36_60,
+                created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [campagne_id, nom, prenom, numero_carte, nb_adultes || 1, type_dotation || 'normale', repasSemaine, points,
+                heure_passage || null, adresse || null, code_postal || null, ville || null, telephone || null, email || null,
+                consentement !== false ? 1 : 0,
+                enfants_0_6 || 0, enfants_6_12 || 0, enfants_12_18 || 0, enfants_18_36 || 0, enfants_36_60 || 0,
+                req.session.user.id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.put('/api/admin/familles/:id', (req, res) => {
+app.put('/api/admin/familles/:id', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -823,39 +942,48 @@ app.put('/api/admin/familles/:id', (req, res) => {
     const repasSemaine = calculerRepasSemaine(nb_adultes, type_dotation || 'normale');
     const points = calculerPointsAdultes(nb_adultes, type_dotation || 'normale');
     
-    db.run(`UPDATE familles 
-            SET campagne_id = ?, nom = ?, prenom = ?, numero_carte = ?, 
-                nb_adultes = ?, type_dotation = ?, nb_repas_semaine = ?, points = ?,
-                heure_passage = ?, adresse = ?, code_postal = ?, ville = ?, 
-                telephone = ?, email = ?, consentement = ?,
-                enfants_0_6 = ?, enfants_6_12 = ?, enfants_12_18 = ?, enfants_18_36 = ?, enfants_36_60 = ?
-            WHERE id = ?`,
-        [campagne_id, nom, prenom, numero_carte, nb_adultes || 1, type_dotation || 'normale', repasSemaine, points,
-         heure_passage || null, adresse || null, code_postal || null, ville || null, 
-         telephone || null, email || null, consentement !== false ? 1 : 0,
-         enfants_0_6 || 0, enfants_6_12 || 0, enfants_12_18 || 0, enfants_18_36 || 0, enfants_36_60 || 0,
-         familleId],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        }
-    );
+    try {
+        await db.execute({
+            sql: `UPDATE familles 
+                   SET campagne_id = ?, nom = ?, prenom = ?, numero_carte = ?, 
+                       nb_adultes = ?, type_dotation = ?, nb_repas_semaine = ?, points = ?,
+                       heure_passage = ?, adresse = ?, code_postal = ?, ville = ?, 
+                       telephone = ?, email = ?, consentement = ?,
+                       enfants_0_6 = ?, enfants_6_12 = ?, enfants_12_18 = ?, enfants_18_36 = ?, enfants_36_60 = ?
+                   WHERE id = ?`,
+            args: [campagne_id, nom, prenom, numero_carte, nb_adultes || 1, type_dotation || 'normale', repasSemaine, points,
+                heure_passage || null, adresse || null, code_postal || null, ville || null, 
+                telephone || null, email || null, consentement !== false ? 1 : 0,
+                enfants_0_6 || 0, enfants_6_12 || 0, enfants_12_18 || 0, enfants_18_36 || 0, enfants_36_60 || 0,
+                familleId]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.delete('/api/admin/familles/:id', (req, res) => {
+app.delete('/api/admin/familles/:id', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
     const id = req.params.id;
     
-    db.run('DELETE FROM familles WHERE id = ?', [id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        await db.execute({
+            sql: 'DELETE FROM familles WHERE id = ?',
+            args: [id]
+        });
         res.json({ success: true, message: 'Famille supprimée définitivement' });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/admin/familles/import', (req, res) => {
+app.post('/api/admin/familles/import', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -869,7 +997,7 @@ app.post('/api/admin/familles/import', (req, res) => {
     let successCount = 0;
     let errorCount = 0;
     
-    const insertFamille = (famille, callback) => {
+    for (const famille of data) {
         const repasSemaine = calculerRepasSemaine(famille.nb_adultes || 1, famille.type_dotation || 'normale');
         const points = calculerPointsAdultes(famille.nb_adultes || 1, famille.type_dotation || 'normale');
         
@@ -878,55 +1006,30 @@ app.post('/api/admin/familles/import', (req, res) => {
             telFinal = famille.telephone || null;
         }
         
-        db.get('SELECT id FROM familles WHERE numero_carte = ? AND campagne_id = ?', [famille.numero_carte, campagne_id], (err, existing) => {
-            if (err) {
-                errorCount++;
-                callback();
-                return;
-            }
-            
-            if (existing) {
-                errorCount++;
-                callback();
-                return;
-            }
-            
-            db.run(`INSERT INTO familles (
-                campagne_id, nom, prenom, numero_carte, nb_adultes, type_dotation, nb_repas_semaine, points,
-                heure_passage, adresse, code_postal, ville, telephone, consentement,
-                enfants_0_6, enfants_6_12, enfants_12_18, enfants_18_36, enfants_36_60,
-                created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [campagne_id, famille.nom, famille.prenom, famille.numero_carte, famille.nb_adultes || 1, famille.type_dotation || 'normale', repasSemaine, points,
-                 famille.heure_passage || null, famille.adresse || null, famille.code_postal || null, famille.ville || null, telFinal,
-                 famille.consentement === true ? 1 : 0,
-                 famille.enfants_0_6 || 0, famille.enfants_6_12 || 0, famille.enfants_12_18 || 0, famille.enfants_18_36 || 0, famille.enfants_36_60 || 0,
-                 req.session.user.id],
-                function(err) {
-                    if (err) {
-                        errorCount++;
-                        callback();
-                    } else {
-                        successCount++;
-                        callback();
-                    }
-                }
-            );
-        });
-    };
-    
-    let completed = 0;
-    for (let i = 0; i < data.length; i++) {
-        insertFamille(data[i], () => {
-            completed++;
-            if (completed === data.length) {
-                res.json({ success: true, successCount: successCount, errorCount: errorCount, total: data.length });
-            }
-        });
+        try {
+            await db.execute({
+                sql: `INSERT INTO familles (
+                    campagne_id, nom, prenom, numero_carte, nb_adultes, type_dotation, nb_repas_semaine, points,
+                    heure_passage, adresse, code_postal, ville, telephone, consentement,
+                    enfants_0_6, enfants_6_12, enfants_12_18, enfants_18_36, enfants_36_60,
+                    created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [campagne_id, famille.nom, famille.prenom, famille.numero_carte, famille.nb_adultes || 1, famille.type_dotation || 'normale', repasSemaine, points,
+                    famille.heure_passage || null, famille.adresse || null, famille.code_postal || null, famille.ville || null, telFinal,
+                    famille.consentement === true ? 1 : 0,
+                    famille.enfants_0_6 || 0, famille.enfants_6_12 || 0, famille.enfants_12_18 || 0, famille.enfants_18_36 || 0, famille.enfants_36_60 || 0,
+                    req.session.user.id]
+            });
+            successCount++;
+        } catch (error) {
+            errorCount++;
+        }
     }
+    
+    res.json({ success: true, successCount: successCount, errorCount: errorCount, total: data.length });
 });
 
-app.get('/api/familles/export/:campagneId', (req, res) => {
+app.get('/api/familles/export/:campagneId', async (req, res) => {
     if (!req.session.user) {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -934,8 +1037,12 @@ app.get('/api/familles/export/:campagneId', (req, res) => {
     const campagneId = req.params.campagneId;
     const format = req.query.format || 'csv';
     
-    db.all('SELECT * FROM familles WHERE campagne_id = ? AND actif = 1', [campagneId], (err, familles) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        const result = await db.execute({
+            sql: 'SELECT * FROM familles WHERE campagne_id = ? AND actif = 1',
+            args: [campagneId]
+        });
+        const familles = result.rows;
         
         if (format === 'json') {
             res.json(familles);
@@ -948,31 +1055,40 @@ app.get('/api/familles/export/:campagneId', (req, res) => {
             res.setHeader('Content-Disposition', `attachment; filename=familles_campagne_${campagneId}.csv`);
             res.send(csv);
         }
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ ROUTES PRODUITS ============
 
-app.get('/api/produits', (req, res) => {
+app.get('/api/produits', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
-    db.all('SELECT * FROM produits ORDER BY nom', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        console.log('📦 Produits envoyés:', rows.length);
-        res.json(rows);
-    });
+    try {
+        const result = await db.execute('SELECT * FROM produits ORDER BY nom');
+        console.log('📦 Produits envoyés:', result.rows.length);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.get('/api/emplacements', (req, res) => {
+app.get('/api/emplacements', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
-    db.all('SELECT * FROM emplacements ORDER BY ordre, nom', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    try {
+        const result = await db.execute('SELECT * FROM emplacements ORDER BY ordre, nom');
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/admin/produits', (req, res) => {
+app.post('/api/admin/produits', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -980,19 +1096,22 @@ app.post('/api/admin/produits', (req, res) => {
     const { reference, nom, groupe, points_total, est_mixte, est_divisible, nombre_unites,
             points_protides, points_accompagnement, points_laitier, points_dessert, min_par_personne } = req.body;
     
-    db.run(`INSERT INTO produits (reference, nom, groupe, points_total, est_mixte, est_divisible, nombre_unites,
-            points_protides, points_accompagnement, points_laitier, points_dessert, min_par_personne)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [reference || null, nom, groupe || null, points_total, est_mixte ? 1 : 0, est_divisible ? 1 : 0, nombre_unites || 1,
-         points_protides || 0, points_accompagnement || 0, points_laitier || 0, points_dessert || 0, min_par_personne ? 1 : 0],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, id: this.lastID });
-        }
-    );
+    try {
+        await db.execute({
+            sql: `INSERT INTO produits (reference, nom, groupe, points_total, est_mixte, est_divisible, nombre_unites,
+                   points_protides, points_accompagnement, points_laitier, points_dessert, min_par_personne)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [reference || null, nom, groupe || null, points_total, est_mixte ? 1 : 0, est_divisible ? 1 : 0, nombre_unites || 1,
+                points_protides || 0, points_accompagnement || 0, points_laitier || 0, points_dessert || 0, min_par_personne ? 1 : 0]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.put('/api/admin/produits/:id', (req, res) => {
+app.put('/api/admin/produits/:id', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -1001,40 +1120,49 @@ app.put('/api/admin/produits/:id', (req, res) => {
             points_protides, points_accompagnement, points_laitier, points_dessert, min_par_personne } = req.body;
     const produitId = req.params.id;
     
-    db.run(`UPDATE produits SET 
-            reference = ?, nom = ?, groupe = ?, points_total = ?, 
-            est_mixte = ?, est_divisible = ?, nombre_unites = ?,
-            points_protides = ?, points_accompagnement = ?, points_laitier = ?, points_dessert = ?,
-            min_par_personne = ?
-            WHERE id = ?`,
-        [reference || null, nom, groupe || null, points_total, 
-         est_mixte ? 1 : 0, est_divisible ? 1 : 0, nombre_unites || 1,
-         points_protides || 0, points_accompagnement || 0, points_laitier || 0, points_dessert || 0,
-         min_par_personne ? 1 : 0,
-         produitId],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        }
-    );
+    try {
+        await db.execute({
+            sql: `UPDATE produits SET 
+                   reference = ?, nom = ?, groupe = ?, points_total = ?, 
+                   est_mixte = ?, est_divisible = ?, nombre_unites = ?,
+                   points_protides = ?, points_accompagnement = ?, points_laitier = ?, points_dessert = ?,
+                   min_par_personne = ?
+                   WHERE id = ?`,
+            args: [reference || null, nom, groupe || null, points_total, 
+                est_mixte ? 1 : 0, est_divisible ? 1 : 0, nombre_unites || 1,
+                points_protides || 0, points_accompagnement || 0, points_laitier || 0, points_dessert || 0,
+                min_par_personne ? 1 : 0, produitId]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.delete('/api/admin/produits/:id', (req, res) => {
+app.delete('/api/admin/produits/:id', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.run('DELETE FROM produits WHERE id = ?', [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        await db.execute({
+            sql: 'DELETE FROM produits WHERE id = ?',
+            args: [req.params.id]
+        });
         res.json({ success: true });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.get('/api/produits/export', (req, res) => {
+app.get('/api/produits/export', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
-    db.all('SELECT * FROM produits ORDER BY nom', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        const result = await db.execute('SELECT * FROM produits ORDER BY nom');
+        const rows = result.rows;
         
         let csv = 'reference,nom,groupe,points_total,est_mixte,points_protides,points_accompagnement,points_laitier,points_dessert,est_divisible,nombre_unites,min_par_personne\n';
         for (const p of rows) {
@@ -1043,10 +1171,13 @@ app.get('/api/produits/export', (req, res) => {
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename=produits.csv');
         res.send(csv);
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/admin/produits/import', (req, res) => {
+app.post('/api/admin/produits/import', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -1060,49 +1191,38 @@ app.post('/api/admin/produits/import', (req, res) => {
     let successCount = 0;
     let errorCount = 0;
     
-    const insertProduit = (produit, callback) => {
-        db.run(`INSERT INTO produits (
-            reference, nom, groupe, points_total, est_mixte, est_divisible, nombre_unites,
-            points_protides, points_accompagnement, points_laitier, points_dessert, min_par_personne
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [produit.reference || null, produit.nom, produit.groupe || null, produit.points_total,
-             produit.est_mixte ? 1 : 0, produit.est_divisible ? 1 : 0, produit.nombre_unites || 1,
-             produit.points_protides || 0, produit.points_accompagnement || 0, produit.points_laitier || 0, produit.points_dessert || 0,
-             produit.min_par_personne ? 1 : 0],
-            function(err) {
-                if (err) {
-                    errorCount++;
-                    callback();
-                } else {
-                    successCount++;
-                    callback();
-                }
-            }
-        );
-    };
-    
-    let completed = 0;
-    for (let i = 0; i < data.length; i++) {
-        insertProduit(data[i], () => {
-            completed++;
-            if (completed === data.length) {
-                res.json({ success: true, successCount: successCount, errorCount: errorCount, total: data.length });
-            }
-        });
+    for (const produit of data) {
+        try {
+            await db.execute({
+                sql: `INSERT INTO produits (
+                    reference, nom, groupe, points_total, est_mixte, est_divisible, nombre_unites,
+                    points_protides, points_accompagnement, points_laitier, points_dessert, min_par_personne
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [produit.reference || null, produit.nom, produit.groupe || null, produit.points_total,
+                    produit.est_mixte ? 1 : 0, produit.est_divisible ? 1 : 0, produit.nombre_unites || 1,
+                    produit.points_protides || 0, produit.points_accompagnement || 0, produit.points_laitier || 0, produit.points_dessert || 0,
+                    produit.min_par_personne ? 1 : 0]
+            });
+            successCount++;
+        } catch (error) {
+            errorCount++;
+        }
     }
+    
+    res.json({ success: true, successCount: successCount, errorCount: errorCount, total: data.length });
 });
 
 // ============ ROUTES LIVRAISONS ============
 
-app.get('/api/livraisons', (req, res) => {
+app.get('/api/livraisons', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.all('SELECT * FROM livraisons ORDER BY date_livraison DESC, created_at DESC', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        const result = await db.execute('SELECT * FROM livraisons ORDER BY date_livraison DESC, created_at DESC');
         
-        const formatted = rows.map(row => ({
+        const formatted = result.rows.map(row => ({
             ...row,
             produit: row.produit_nom
         }));
@@ -1115,26 +1235,36 @@ app.get('/api/livraisons', (req, res) => {
         });
         
         res.json(grouped);
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.get('/api/livraisons/:id', (req, res) => {
+app.get('/api/livraisons/:id', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.get('SELECT * FROM livraisons WHERE id = ?', [req.params.id], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        const result = await db.execute({
+            sql: 'SELECT * FROM livraisons WHERE id = ?',
+            args: [req.params.id]
+        });
+        const row = result.rows[0];
         if (!row) return res.status(404).json({ error: 'Livraison non trouvée' });
         
         res.json({
             ...row,
             produit: row.produit_nom
         });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/livraisons', upload.single('image'), (req, res) => {
+app.post('/api/livraisons', upload.single('image'), async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -1147,30 +1277,32 @@ app.post('/api/livraisons', upload.single('image'), (req, res) => {
         return res.status(400).json({ error: 'La date et le produit sont obligatoires' });
     }
     
-    db.get('SELECT nom FROM produits WHERE id = ?', [produit_id], (err, produit) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        const produitResult = await db.execute({
+            sql: 'SELECT nom FROM produits WHERE id = ?',
+            args: [produit_id]
+        });
+        const produit = produitResult.rows[0];
         if (!produit) return res.status(404).json({ error: 'Produit non trouvé' });
         
-        db.run(`INSERT INTO livraisons (
-            date_livraison, produit_id, produit_nom,
-            nb_colis, produits_par_colis, total_a_distribuer,
-            date_peremption, notes, image_url, emplacement_id, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [date_livraison, produit_id, produit.nom,
-             nb_colis || 0, produits_par_colis || 0, total_a_distribuer || 0,
-             date_peremption || null, notes || null, image_url, emplacement_id || null, req.session.user.id],
-            function(err) {
-                if (err) {
-                    console.error('❌ Erreur insertion livraison:', err.message);
-                    return res.status(500).json({ error: err.message });
-                }
-                res.json({ success: true, id: this.lastID });
-            }
-        );
-    });
+        await db.execute({
+            sql: `INSERT INTO livraisons (
+                date_livraison, produit_id, produit_nom,
+                nb_colis, produits_par_colis, total_a_distribuer,
+                date_peremption, notes, image_url, emplacement_id, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [date_livraison, produit_id, produit.nom,
+                nb_colis || 0, produits_par_colis || 0, total_a_distribuer || 0,
+                date_peremption || null, notes || null, image_url, emplacement_id || null, req.session.user.id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur insertion livraison:', error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.put('/api/livraisons/:id', upload.single('image'), (req, res) => {
+app.put('/api/livraisons/:id', upload.single('image'), async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -1184,51 +1316,62 @@ app.put('/api/livraisons/:id', upload.single('image'), (req, res) => {
         return res.status(400).json({ error: 'La date et le produit sont obligatoires' });
     }
     
-    db.get('SELECT nom FROM produits WHERE id = ?', [produit_id], (err, produit) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        const produitResult = await db.execute({
+            sql: 'SELECT nom FROM produits WHERE id = ?',
+            args: [produit_id]
+        });
+        const produit = produitResult.rows[0];
         if (!produit) return res.status(404).json({ error: 'Produit non trouvé' });
         
-        db.run(`UPDATE livraisons SET 
-            date_livraison = ?, produit_id = ?, produit_nom = ?,
-            nb_colis = ?, produits_par_colis = ?, total_a_distribuer = ?,
-            date_peremption = ?, notes = ?, image_url = ?, emplacement_id = ?
-            WHERE id = ?`,
-            [date_livraison, produit_id, produit.nom,
-             nb_colis || 0, produits_par_colis || 0, total_a_distribuer || 0,
-             date_peremption || null, notes || null, image_url, emplacement_id || null, livraisonId],
-            function(err) {
-                if (err) {
-                    console.error('❌ Erreur mise à jour livraison:', err.message);
-                    return res.status(500).json({ error: err.message });
-                }
-                res.json({ success: true });
-            }
-        );
-    });
+        await db.execute({
+            sql: `UPDATE livraisons SET 
+                date_livraison = ?, produit_id = ?, produit_nom = ?,
+                nb_colis = ?, produits_par_colis = ?, total_a_distribuer = ?,
+                date_peremption = ?, notes = ?, image_url = ?, emplacement_id = ?
+                WHERE id = ?`,
+            args: [date_livraison, produit_id, produit.nom,
+                nb_colis || 0, produits_par_colis || 0, total_a_distribuer || 0,
+                date_peremption || null, notes || null, image_url, emplacement_id || null, livraisonId]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur mise à jour livraison:', error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.delete('/api/livraisons/:id', (req, res) => {
+app.delete('/api/livraisons/:id', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.run('DELETE FROM livraisons WHERE id = ?', [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        await db.execute({
+            sql: 'DELETE FROM livraisons WHERE id = ?',
+            args: [req.params.id]
+        });
         res.json({ success: true });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ ROUTES UTILISATEURS ============
 
-app.get('/api/admin/users', (req, res) => {
+app.get('/api/admin/users', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.all('SELECT id, email, nom, prenom, telephone, age, role_id, actif FROM users ORDER BY nom', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    try {
+        const result = await db.execute('SELECT id, email, nom, prenom, telephone, age, role_id, actif FROM users ORDER BY nom');
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.post('/api/admin/users', async (req, res) => {
@@ -1242,20 +1385,29 @@ app.post('/api/admin/users', async (req, res) => {
         return res.status(400).json({ error: 'Email requis' });
     }
     
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    db.run(`INSERT INTO users (email, password, nom, prenom, telephone, age, role_id, actif)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [email.trim(), hashedPassword, nom, prenom, telephone || null, age || null, role_id || 2, actif ? 1 : 0],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            
-            // Ajouter le nouvel utilisateur à la conversation générale
-            db.run(`INSERT OR IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (1, ?)`, [this.lastID]);
-            
-            res.json({ success: true, id: this.lastID });
-        }
-    );
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        await db.execute({
+            sql: 'INSERT INTO users (email, password, nom, prenom, telephone, age, role_id, actif) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            args: [email.trim(), hashedPassword, nom, prenom, telephone || null, age || null, role_id || 2, actif ? 1 : 0]
+        });
+        
+        // Ajouter le nouvel utilisateur à la conversation générale
+        const userResult = await db.execute({
+            sql: 'SELECT last_insert_rowid() as id'
+        });
+        const userId = userResult.rows[0].id;
+        await db.execute({
+            sql: 'INSERT OR IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (1, ?)',
+            args: [userId]
+        });
+        
+        res.json({ success: true, id: userId });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.put('/api/admin/users/:id', async (req, res) => {
@@ -1266,288 +1418,344 @@ app.put('/api/admin/users/:id', async (req, res) => {
     const { email, password, nom, prenom, telephone, age, role_id, actif } = req.body;
     const userId = req.params.id;
     
-    let query = 'UPDATE users SET email = ?, nom = ?, prenom = ?, telephone = ?, age = ?, role_id = ?, actif = ?';
-    let params = [email, nom, prenom, telephone || null, age || null, role_id || 2, actif ? 1 : 0];
-    
-    if (password) {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        query += ', password = ?';
-        params.push(hashedPassword);
-    }
-    
-    query += ' WHERE id = ?';
-    params.push(userId);
-    
-    db.run(query, params, function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        let query = 'UPDATE users SET email = ?, nom = ?, prenom = ?, telephone = ?, age = ?, role_id = ?, actif = ?';
+        let params = [email, nom, prenom, telephone || null, age || null, role_id || 2, actif ? 1 : 0];
+        
+        if (password) {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            query += ', password = ?';
+            params.push(hashedPassword);
+        }
+        
+        query += ' WHERE id = ?';
+        params.push(userId);
+        
+        await db.execute({
+            sql: query,
+            args: params
+        });
         res.json({ success: true });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.delete('/api/admin/users/:id', (req, res) => {
+app.delete('/api/admin/users/:id', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.run('DELETE FROM users WHERE id = ?', [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        await db.execute({
+            sql: 'DELETE FROM users WHERE id = ?',
+            args: [req.params.id]
+        });
         res.json({ success: true });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ ROUTES RÔLES ============
 
-app.get('/api/admin/roles', (req, res) => {
+app.get('/api/admin/roles', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.all('SELECT * FROM roles ORDER BY id', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
-});
-
-app.post('/api/admin/roles', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Non autorisé' });
+    try {
+        const result = await db.execute('SELECT * FROM roles ORDER BY id');
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
     }
-    
-    const { nom, description, permissions } = req.body;
-    
-    db.run(`INSERT INTO roles (nom, description, permissions) VALUES (?, ?, ?)`,
-        [nom, description || null, permissions || null],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, id: this.lastID });
-        }
-    );
 });
 
-app.put('/api/admin/roles/:id', (req, res) => {
+app.post('/api/admin/roles', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
     const { nom, description, permissions } = req.body;
-    
-    db.run(`UPDATE roles SET nom = ?, description = ?, permissions = ? WHERE id = ?`,
-        [nom, description || null, permissions || null, req.params.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        }
-    );
+    try {
+        await db.execute({
+            sql: 'INSERT INTO roles (nom, description, permissions) VALUES (?, ?, ?)',
+            args: [nom, description || null, permissions || null]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.delete('/api/admin/roles/:id', (req, res) => {
+app.put('/api/admin/roles/:id', async (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+    
+    const { nom, description, permissions } = req.body;
+    try {
+        await db.execute({
+            sql: 'UPDATE roles SET nom = ?, description = ?, permissions = ? WHERE id = ?',
+            args: [nom, description || null, permissions || null, req.params.id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/admin/roles/:id', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
     const roleId = req.params.id;
-    
-    db.run('UPDATE users SET role_id = 2 WHERE role_id = ?', [roleId], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        db.run('DELETE FROM roles WHERE id = ?', [roleId], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
+    try {
+        await db.execute({
+            sql: 'UPDATE users SET role_id = 2 WHERE role_id = ?',
+            args: [roleId]
         });
-    });
+        await db.execute({
+            sql: 'DELETE FROM roles WHERE id = ?',
+            args: [roleId]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ ROUTES WHITELIST ============
 
-app.get('/api/admin/whitelist', (req, res) => {
+app.get('/api/admin/whitelist', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.all('SELECT * FROM whitelist ORDER BY id DESC', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    try {
+        const result = await db.execute('SELECT * FROM whitelist ORDER BY id DESC');
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/admin/whitelist', (req, res) => {
+app.post('/api/admin/whitelist', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
     const { email, role } = req.body;
-    db.run('INSERT OR REPLACE INTO whitelist (email, role, created_by) VALUES (?, ?, ?)',
-        [email, role, req.session.user.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        }
-    );
+    try {
+        await db.execute({
+            sql: 'INSERT OR REPLACE INTO whitelist (email, role, created_by) VALUES (?, ?, ?)',
+            args: [email, role, req.session.user.id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.delete('/api/admin/whitelist/:email', (req, res) => {
+app.delete('/api/admin/whitelist/:email', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.run('DELETE FROM whitelist WHERE email = ?', [req.params.email], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        await db.execute({
+            sql: 'DELETE FROM whitelist WHERE email = ?',
+            args: [req.params.email]
+        });
         res.json({ success: true });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ ROUTES PLANNING ============
 
-app.get('/api/creneaux', (req, res) => {
+app.get('/api/creneaux', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
     const userId = req.session.user.id;
     const isAdmin = req.session.user.role === 'admin';
     
-    let query = `
-        SELECT c.*, 
-               (SELECT COUNT(*) FROM inscriptions WHERE creneau_id = c.id) as places_prises,
-               (SELECT statut FROM inscriptions WHERE creneau_id = c.id AND user_id = ?) as mon_statut
-        FROM creneaux c
-        WHERE c.date_creneau >= date('now')
-        ORDER BY c.date_creneau ASC, c.heure_debut ASC
-    `;
-    
-    db.all(query, [userId], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        const query = `
+            SELECT c.*, 
+                   (SELECT COUNT(*) FROM inscriptions WHERE creneau_id = c.id) as places_prises,
+                   (SELECT statut FROM inscriptions WHERE creneau_id = c.id AND user_id = ?) as mon_statut
+            FROM creneaux c
+            WHERE c.date_creneau >= date('now')
+            ORDER BY c.date_creneau ASC, c.heure_debut ASC
+        `;
+        const result = await db.execute({
+            sql: query,
+            args: [userId]
+        });
+        const rows = result.rows;
         
         if (isAdmin && rows.length > 0) {
-            const promises = rows.map(creneau => {
-                return new Promise((resolve) => {
-                    db.all(`
+            for (const creneau of rows) {
+                const inscritsResult = await db.execute({
+                    sql: `
                         SELECT u.id, u.nom, u.prenom, u.email, i.statut, i.inscrit_le
                         FROM inscriptions i
                         JOIN users u ON u.id = i.user_id
                         WHERE i.creneau_id = ?
-                    `, [creneau.id], (err, inscrits) => {
-                        creneau.inscrits = inscrits || [];
-                        resolve();
-                    });
+                    `,
+                    args: [creneau.id]
                 });
-            });
-            
-            Promise.all(promises).then(() => {
-                res.json(rows);
-            });
-        } else {
-            res.json(rows);
+                creneau.inscrits = inscritsResult.rows;
+            }
         }
-    });
+        res.json(rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.get('/api/creneaux/passes', (req, res) => {
+app.get('/api/creneaux/passes', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
     const userId = req.session.user.id;
     
-    db.all(`
-        SELECT c.*, i.statut, i.inscrit_le
-        FROM creneaux c
-        JOIN inscriptions i ON i.creneau_id = c.id
-        WHERE c.date_creneau < date('now') AND i.user_id = ?
-        ORDER BY c.date_creneau DESC
-    `, [userId], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
-});
-
-app.post('/api/admin/creneaux', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Non autorisé' });
-    }
-    
-    const { date_creneau, heure_debut, heure_fin, type_activite, places_total, description } = req.body;
-    
-    db.run(`INSERT INTO creneaux (date_creneau, heure_debut, heure_fin, type_activite, places_total, description, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [date_creneau, heure_debut, heure_fin, type_activite, places_total || 5, description || null, req.session.user.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, id: this.lastID });
-        }
-    );
-});
-
-app.put('/api/admin/creneaux/:id', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Non autorisé' });
-    }
-    
-    const { date_creneau, heure_debut, heure_fin, type_activite, places_total, description } = req.body;
-    
-    db.run(`UPDATE creneaux 
-            SET date_creneau = ?, heure_debut = ?, heure_fin = ?, type_activite = ?, places_total = ?, description = ?
-            WHERE id = ?`,
-        [date_creneau, heure_debut, heure_fin, type_activite, places_total || 5, description || null, req.params.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        }
-    );
-});
-
-app.delete('/api/admin/creneaux/:id', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Non autorisé' });
-    }
-    
-    db.run('DELETE FROM inscriptions WHERE creneau_id = ?', [req.params.id], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        db.run('DELETE FROM creneaux WHERE id = ?', [req.params.id], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
+    try {
+        const result = await db.execute({
+            sql: `
+                SELECT c.*, i.statut, i.inscrit_le
+                FROM creneaux c
+                JOIN inscriptions i ON i.creneau_id = c.id
+                WHERE c.date_creneau < date('now') AND i.user_id = ?
+                ORDER BY c.date_creneau DESC
+            `,
+            args: [userId]
         });
-    });
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/inscriptions', (req, res) => {
+app.post('/api/admin/creneaux', async (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+    
+    const { date_creneau, heure_debut, heure_fin, type_activite, places_total, description } = req.body;
+    try {
+        await db.execute({
+            sql: 'INSERT INTO creneaux (date_creneau, heure_debut, heure_fin, type_activite, places_total, description, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            args: [date_creneau, heure_debut, heure_fin, type_activite, places_total || 5, description || null, req.session.user.id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/admin/creneaux/:id', async (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+    
+    const { date_creneau, heure_debut, heure_fin, type_activite, places_total, description } = req.body;
+    try {
+        await db.execute({
+            sql: 'UPDATE creneaux SET date_creneau = ?, heure_debut = ?, heure_fin = ?, type_activite = ?, places_total = ?, description = ? WHERE id = ?',
+            args: [date_creneau, heure_debut, heure_fin, type_activite, places_total || 5, description || null, req.params.id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/admin/creneaux/:id', async (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+    
+    try {
+        await db.execute({
+            sql: 'DELETE FROM inscriptions WHERE creneau_id = ?',
+            args: [req.params.id]
+        });
+        await db.execute({
+            sql: 'DELETE FROM creneaux WHERE id = ?',
+            args: [req.params.id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/inscriptions', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
     const { creneau_id } = req.body;
     const user_id = req.session.user.id;
     
-    db.get('SELECT places_total, (SELECT COUNT(*) FROM inscriptions WHERE creneau_id = ?) as places_prises FROM creneaux WHERE id = ?',
-        [creneau_id, creneau_id], (err, creneau) => {
-            if (err) return res.status(500).json({ error: err.message });
-            if (!creneau) return res.status(404).json({ error: 'Créneau non trouvé' });
-            
-            if (creneau.places_prises >= creneau.places_total) {
-                return res.status(400).json({ error: 'Plus de places disponibles' });
-            }
-            
-            db.run(`INSERT INTO inscriptions (creneau_id, user_id) VALUES (?, ?)`,
-                [creneau_id, user_id],
-                function(err) {
-                    if (err) return res.status(500).json({ error: err.message });
-                    res.json({ success: true });
-                }
-            );
+    try {
+        const creneauResult = await db.execute({
+            sql: 'SELECT places_total, (SELECT COUNT(*) FROM inscriptions WHERE creneau_id = ?) as places_prises FROM creneaux WHERE id = ?',
+            args: [creneau_id, creneau_id]
         });
+        const creneau = creneauResult.rows[0];
+        if (!creneau) return res.status(404).json({ error: 'Créneau non trouvé' });
+        
+        if (creneau.places_prises >= creneau.places_total) {
+            return res.status(400).json({ error: 'Plus de places disponibles' });
+        }
+        
+        await db.execute({
+            sql: 'INSERT INTO inscriptions (creneau_id, user_id) VALUES (?, ?)',
+            args: [creneau_id, user_id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.delete('/api/inscriptions/:creneau_id', (req, res) => {
+app.delete('/api/inscriptions/:creneau_id', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
     const { creneau_id } = req.params;
     const user_id = req.session.user.id;
     
-    db.run('DELETE FROM inscriptions WHERE creneau_id = ? AND user_id = ?',
-        [creneau_id, user_id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        }
-    );
+    try {
+        await db.execute({
+            sql: 'DELETE FROM inscriptions WHERE creneau_id = ? AND user_id = ?',
+            args: [creneau_id, user_id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.put('/api/admin/inscriptions/:id/statut', (req, res) => {
+app.put('/api/admin/inscriptions/:id/statut', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -1555,81 +1763,94 @@ app.put('/api/admin/inscriptions/:id/statut', (req, res) => {
     const { statut } = req.body;
     const { id } = req.params;
     
-    db.run('UPDATE inscriptions SET statut = ? WHERE id = ?',
-        [statut, id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        }
-    );
+    try {
+        await db.execute({
+            sql: 'UPDATE inscriptions SET statut = ? WHERE id = ?',
+            args: [statut, id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ ROUTES DISTRIBUTION ============
 
-// Récupérer toutes les distributions d'une campagne
-app.get('/api/distributions/:campagneId', (req, res) => {
+app.get('/api/distributions/:campagneId', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
     const campagneId = req.params.campagneId;
     
-    db.all('SELECT * FROM distributions WHERE campagne_id = ? ORDER BY date_distribution DESC', [campagneId], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    try {
+        const result = await db.execute({
+            sql: 'SELECT * FROM distributions WHERE campagne_id = ? ORDER BY date_distribution DESC',
+            args: [campagneId]
+        });
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// Récupérer une distribution spécifique
-app.get('/api/distributions/:id', (req, res) => {
+app.get('/api/distributions/:id', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
-    db.get('SELECT * FROM distributions WHERE id = ?', [req.params.id], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        const result = await db.execute({
+            sql: 'SELECT * FROM distributions WHERE id = ?',
+            args: [req.params.id]
+        });
+        const row = result.rows[0];
         if (!row) return res.status(404).json({ error: 'Distribution non trouvée' });
         
-        var result = row;
+        var resultData = { ...row };
         if (row.besoins_json) {
             try {
                 var data = JSON.parse(row.besoins_json);
-                result.besoins = data.besoins;
-                result.familles_par_personne = data.familles_par_personne;
-                result.total_familles = data.total_familles;
-                result.multiplicateur = data.multiplicateur;
+                resultData.besoins = data.besoins;
+                resultData.familles_par_personne = data.familles_par_personne;
+                resultData.total_familles = data.total_familles;
+                resultData.multiplicateur = data.multiplicateur;
             } catch (e) {
                 console.error('Erreur parsing besoins_json:', e);
             }
         }
         if (row.ventilation_json) {
             try {
-                result.ventilation = JSON.parse(row.ventilation_json);
+                resultData.ventilation = JSON.parse(row.ventilation_json);
             } catch (e) {
                 console.error('Erreur parsing ventilation_json:', e);
             }
         }
         
-        res.json(result);
-    });
+        res.json(resultData);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// Créer une nouvelle distribution
-app.post('/api/distributions', (req, res) => {
+app.post('/api/distributions', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
     const { campagne_id, date_distribution, periode, livraison_ids } = req.body;
-    
-    db.run(`INSERT INTO distributions (campagne_id, date_distribution, periode, livraison_ids, created_by)
-            VALUES (?, ?, ?, ?, ?)`,
-        [campagne_id, date_distribution, periode, JSON.stringify(livraison_ids), req.session.user.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, id: this.lastID });
-        }
-    );
+    try {
+        await db.execute({
+            sql: 'INSERT INTO distributions (campagne_id, date_distribution, periode, livraison_ids, created_by) VALUES (?, ?, ?, ?, ?)',
+            args: [campagne_id, date_distribution, periode, JSON.stringify(livraison_ids), req.session.user.id]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// Sauvegarder les données d'une distribution
-app.post('/api/distributions/:id/save-data', (req, res) => {
+app.post('/api/distributions/:id/save-data', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
@@ -1644,103 +1865,126 @@ app.post('/api/distributions/:id/save-data', (req, res) => {
         multiplicateur: multiplicateur
     };
     
-    db.run(`UPDATE distributions SET besoins_json = ? WHERE id = ?`,
-        [JSON.stringify(data), distributionId],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        }
-    );
+    try {
+        await db.execute({
+            sql: 'UPDATE distributions SET besoins_json = ? WHERE id = ?',
+            args: [JSON.stringify(data), distributionId]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// Supprimer une distribution
-app.delete('/api/distributions/:id', (req, res) => {
+app.delete('/api/distributions/:id', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.run('DELETE FROM distributions WHERE id = ?', [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        await db.execute({
+            sql: 'DELETE FROM distributions WHERE id = ?',
+            args: [req.params.id]
+        });
         res.json({ success: true });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// Valider une distribution
-app.put('/api/distributions/:id/valider', (req, res) => {
+app.put('/api/distributions/:id/valider', async (req, res) => {
     if (!req.session.user || req.session.user.role !== 'admin') {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
-    db.run(`UPDATE distributions SET statut = 'valide' WHERE id = ?`, [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        await db.execute({
+            sql: 'UPDATE distributions SET statut = ? WHERE id = ?',
+            args: ['valide', req.params.id]
+        });
         res.json({ success: true });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// Calculer les besoins pour une distribution
-app.get('/api/distributions/:id/besoins', (req, res) => {
+app.get('/api/distributions/:id/besoins', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
     const distributionId = req.params.id;
     
-    db.get('SELECT * FROM distributions WHERE id = ?', [distributionId], (err, distribution) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        const distResult = await db.execute({
+            sql: 'SELECT * FROM distributions WHERE id = ?',
+            args: [distributionId]
+        });
+        const distribution = distResult.rows[0];
         if (!distribution) return res.status(404).json({ error: 'Distribution non trouvée' });
         
         const campagneId = distribution.campagne_id;
         const periode = distribution.periode || 'bimensuel';
         const multiplicateur = periode === 'bimensuel' ? 2 : 1;
         
-        db.all('SELECT * FROM familles WHERE campagne_id = ? AND actif = 1', [campagneId], (err, familles) => {
-            if (err) return res.status(500).json({ error: err.message });
-            
-            let besoins = {
-                protides: 0,
-                accompagnement: 0,
-                laitier: 0,
-                dessert: 0
-            };
-            
-            let famillesParPersonne = {};
-            let totalFamilles = familles.length;
-            
-            for (const f of familles) {
-                const nbPersonnes = f.nb_adultes || 1;
-                const pointsParPersonne = nbPersonnes === 1 ? 6 : 5;
-                const pointsTotalParCategorie = pointsParPersonne * multiplicateur;
-                
-                besoins.protides += pointsTotalParCategorie;
-                besoins.accompagnement += pointsTotalParCategorie;
-                besoins.laitier += pointsTotalParCategorie;
-                besoins.dessert += pointsTotalParCategorie;
-                
-                if (!famillesParPersonne[nbPersonnes]) {
-                    famillesParPersonne[nbPersonnes] = 0;
-                }
-                famillesParPersonne[nbPersonnes]++;
-            }
-            
-            res.json({
-                besoins: besoins,
-                famillesParPersonne: famillesParPersonne,
-                totalFamilles: totalFamilles,
-                periode: periode,
-                multiplicateur: multiplicateur,
-                campagne_id: campagneId
-            });
+        const famillesResult = await db.execute({
+            sql: 'SELECT * FROM familles WHERE campagne_id = ? AND actif = 1',
+            args: [campagneId]
         });
-    });
+        const familles = famillesResult.rows;
+        
+        let besoins = {
+            protides: 0,
+            accompagnement: 0,
+            laitier: 0,
+            dessert: 0
+        };
+        
+        let famillesParPersonne = {};
+        let totalFamilles = familles.length;
+        
+        for (const f of familles) {
+            const nbPersonnes = f.nb_adultes || 1;
+            const pointsParPersonne = nbPersonnes === 1 ? 6 : 5;
+            const pointsTotalParCategorie = pointsParPersonne * multiplicateur;
+            
+            besoins.protides += pointsTotalParCategorie;
+            besoins.accompagnement += pointsTotalParCategorie;
+            besoins.laitier += pointsTotalParCategorie;
+            besoins.dessert += pointsTotalParCategorie;
+            
+            if (!famillesParPersonne[nbPersonnes]) {
+                famillesParPersonne[nbPersonnes] = 0;
+            }
+            famillesParPersonne[nbPersonnes]++;
+        }
+        
+        res.json({
+            besoins: besoins,
+            famillesParPersonne: famillesParPersonne,
+            totalFamilles: totalFamilles,
+            periode: periode,
+            multiplicateur: multiplicateur,
+            campagne_id: campagneId
+        });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// Récupérer les stocks disponibles (livraisons)
-app.get('/api/distribution/stocks', (req, res) => {
+app.get('/api/distribution/stocks', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
-    db.all(`SELECT l.*, p.groupe AS produit_groupe, p.points_total AS produit_points,
+    try {
+        const result = await db.execute(`
+            SELECT l.*, p.groupe AS produit_groupe, p.points_total AS produit_points,
                    p.est_divisible AS produit_est_divisible, p.nombre_unites AS produit_nombre_unites
             FROM livraisons l
-            LEFT JOIN produits p ON p.id = l.produit_id`, [], (err, livraisons) => {
-        if (err) return res.status(500).json({ error: err.message });
+            LEFT JOIN produits p ON p.id = l.produit_id
+        `);
+        const livraisons = result.rows;
         
         var stocks = {};
         for (var i = 0; i < livraisons.length; i++) {
@@ -1763,57 +2007,76 @@ app.get('/api/distribution/stocks', (req, res) => {
         }
         
         res.json(Object.values(stocks));
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ ROUTES MESSAGERIE ============
 
-app.get('/api/conversations', (req, res) => {
+app.get('/api/conversations', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
     const userId = req.session.user.id;
     
-    db.all(`
-        SELECT c.*, 
-               (SELECT COUNT(*) FROM messages_conversation WHERE conversation_id = c.id AND is_read = 0 AND user_id != ?) as unread_count,
-               (SELECT message FROM messages_conversation WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
-               (SELECT created_at FROM messages_conversation WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message_date
-        FROM conversations c
-        JOIN conversation_participants cp ON cp.conversation_id = c.id
-        WHERE cp.user_id = ?
-        ORDER BY last_message_date DESC
-    `, [userId, userId], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    try {
+        const result = await db.execute({
+            sql: `
+                SELECT c.*, 
+                       (SELECT COUNT(*) FROM messages_conversation WHERE conversation_id = c.id AND is_read = 0 AND user_id != ?) as unread_count,
+                       (SELECT message FROM messages_conversation WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
+                       (SELECT created_at FROM messages_conversation WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message_date
+                FROM conversations c
+                JOIN conversation_participants cp ON cp.conversation_id = c.id
+                WHERE cp.user_id = ?
+                ORDER BY last_message_date DESC
+            `,
+            args: [userId, userId]
+        });
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.get('/api/conversations/:id/messages', (req, res) => {
+app.get('/api/conversations/:id/messages', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
     const conversationId = req.params.id;
     const userId = req.session.user.id;
     
-    db.get('SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [conversationId, userId], (err, participant) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!participant) return res.status(403).json({ error: 'Accès non autorisé' });
-        
-        db.run('UPDATE messages_conversation SET is_read = 1 WHERE conversation_id = ? AND user_id != ?', [conversationId, userId]);
-        
-        db.all(`
-            SELECT m.*, u.nom, u.prenom, u.avatar
-            FROM messages_conversation m
-            JOIN users u ON u.id = m.user_id
-            WHERE m.conversation_id = ?
-            ORDER BY m.created_at ASC
-        `, [conversationId], (err, messages) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json(messages);
+    try {
+        const participantResult = await db.execute({
+            sql: 'SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?',
+            args: [conversationId, userId]
         });
-    });
+        if (!participantResult.rows[0]) return res.status(403).json({ error: 'Accès non autorisé' });
+        
+        await db.execute({
+            sql: 'UPDATE messages_conversation SET is_read = 1 WHERE conversation_id = ? AND user_id != ?',
+            args: [conversationId, userId]
+        });
+        
+        const messagesResult = await db.execute({
+            sql: `
+                SELECT m.*, u.nom, u.prenom, u.avatar
+                FROM messages_conversation m
+                JOIN users u ON u.id = m.user_id
+                WHERE m.conversation_id = ?
+                ORDER BY m.created_at ASC
+            `,
+            args: [conversationId]
+        });
+        res.json(messagesResult.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/conversations/:id/messages', (req, res) => {
+app.post('/api/conversations/:id/messages', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
     const conversationId = req.params.id;
@@ -1824,55 +2087,67 @@ app.post('/api/conversations/:id/messages', (req, res) => {
         return res.status(400).json({ error: 'Message vide' });
     }
     
-    db.get('SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [conversationId, userId], (err, participant) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!participant) return res.status(403).json({ error: 'Accès non autorisé' });
+    try {
+        const participantResult = await db.execute({
+            sql: 'SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?',
+            args: [conversationId, userId]
+        });
+        if (!participantResult.rows[0]) return res.status(403).json({ error: 'Accès non autorisé' });
         
-        db.run(`INSERT INTO messages_conversation (conversation_id, user_id, message) VALUES (?, ?, ?)`,
-            [conversationId, userId, message],
-            function(err) {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json({ success: true, id: this.lastID });
-            }
-        );
-    });
+        await db.execute({
+            sql: 'INSERT INTO messages_conversation (conversation_id, user_id, message) VALUES (?, ?, ?)',
+            args: [conversationId, userId, message]
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/conversations/private', (req, res) => {
+app.post('/api/conversations/private', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
     const { other_user_id } = req.body;
     const userId = req.session.user.id;
     
-    db.all(`
-        SELECT c.id FROM conversations c
-        JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
-        JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
-        WHERE c.type = 'private'
-    `, [userId, other_user_id], (err, existing) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        const existingResult = await db.execute({
+            sql: `
+                SELECT c.id FROM conversations c
+                JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
+                JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
+                WHERE c.type = 'private'
+            `,
+            args: [userId, other_user_id]
+        });
         
-        if (existing && existing.length > 0) {
-            return res.json({ success: true, conversation_id: existing[0].id });
+        if (existingResult.rows.length > 0) {
+            return res.json({ success: true, conversation_id: existingResult.rows[0].id });
         }
         
-        db.run(`INSERT INTO conversations (type, created_by) VALUES ('private', ?)`, [userId], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            
-            const conversationId = this.lastID;
-            
-            db.run(`INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)`,
-                [conversationId, userId, conversationId, other_user_id],
-                (err) => {
-                    if (err) return res.status(500).json({ error: err.message });
-                    res.json({ success: true, conversation_id: conversationId });
-                }
-            );
+        await db.execute({
+            sql: 'INSERT INTO conversations (type, created_by) VALUES (?, ?)',
+            args: ['private', userId]
         });
-    });
+        
+        const convResult = await db.execute({
+            sql: 'SELECT last_insert_rowid() as id'
+        });
+        const conversationId = convResult.rows[0].id;
+        
+        await db.execute({
+            sql: 'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)',
+            args: [conversationId, userId, conversationId, other_user_id]
+        });
+        res.json({ success: true, conversation_id: conversationId });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/conversations/group', (req, res) => {
+app.post('/api/conversations/group', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
     const { participants, nom } = req.body;
@@ -1886,34 +2161,43 @@ app.post('/api/conversations/group', (req, res) => {
         participants.push(userId);
     }
     
-    let conversationNom = nom;
-    if (!conversationNom) {
-        conversationNom = 'Groupe de discussion';
-    }
+    let conversationNom = nom || 'Groupe de discussion';
     
-    db.run(`INSERT INTO conversations (nom, type, created_by) VALUES (?, 'group', ?)`, 
-        [conversationNom, userId], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        await db.execute({
+            sql: 'INSERT INTO conversations (nom, type, created_by) VALUES (?, ?, ?)',
+            args: [conversationNom, 'group', userId]
+        });
         
-        const conversationId = this.lastID;
+        const convResult = await db.execute({
+            sql: 'SELECT last_insert_rowid() as id'
+        });
+        const conversationId = convResult.rows[0].id;
         
-        const stmt = db.prepare(`INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)`);
         for (const p of participants) {
-            stmt.run([conversationId, p]);
+            await db.execute({
+                sql: 'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)',
+                args: [conversationId, p]
+            });
         }
-        stmt.finalize();
         
         res.json({ success: true, conversation_id: conversationId });
-    });
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.get('/api/users/benevoles', (req, res) => {
+app.get('/api/users/benevoles', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
-    db.all('SELECT id, nom, prenom, email, avatar FROM users WHERE role_id IN (1, 2) ORDER BY nom', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    try {
+        const result = await db.execute('SELECT id, nom, prenom, email, avatar FROM users WHERE role_id IN (1, 2) ORDER BY nom');
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ ROUTES VÉRIFICATION SESSION ============
@@ -1955,92 +2239,84 @@ app.get('/messagerie.html', (req, res) => {
 });
 
 // Pages Admin avec vérification des permissions
-app.get('/admin/dashboard.html', (req, res) => {
+app.get('/admin/dashboard.html', async (req, res) => {
     if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
     
-    checkPermission(req.session.user.id, 'dashboard', (hasPermission) => {
-        if (!hasPermission && req.session.user.role !== 'admin') {
-            return res.sendFile(path.join(__dirname, 'src', 'pages', 'benevole', 'dashboard.html'));
-        }
-        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'dashboard.html'));
-    });
+    const hasPermission = await checkPermission(req.session.user.id, 'dashboard');
+    if (!hasPermission && req.session.user.role !== 'admin') {
+        return res.sendFile(path.join(__dirname, 'src', 'pages', 'benevole', 'dashboard.html'));
+    }
+    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'dashboard.html'));
 });
 
-app.get('/admin/gestion-communication.html', (req, res) => {
+app.get('/admin/gestion-communication.html', async (req, res) => {
     if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
     
-    checkPermission(req.session.user.id, 'communication', (hasPermission) => {
-        if (!hasPermission && req.session.user.role !== 'admin') {
-            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-        }
-        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-communication.html'));
-    });
+    const hasPermission = await checkPermission(req.session.user.id, 'communication');
+    if (!hasPermission && req.session.user.role !== 'admin') {
+        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    }
+    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-communication.html'));
 });
 
-app.get('/admin/gestion-planning.html', (req, res) => {
+app.get('/admin/gestion-planning.html', async (req, res) => {
     if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
     
-    checkPermission(req.session.user.id, 'gestion_planning', (hasPermission) => {
-        if (!hasPermission && req.session.user.role !== 'admin') {
-            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-        }
-        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-planning.html'));
-    });
+    const hasPermission = await checkPermission(req.session.user.id, 'gestion_planning');
+    if (!hasPermission && req.session.user.role !== 'admin') {
+        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    }
+    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-planning.html'));
 });
 
-app.get('/admin/gestion-livraisons.html', (req, res) => {
+app.get('/admin/gestion-livraisons.html', async (req, res) => {
     if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
     
-    checkPermission(req.session.user.id, 'livraisons', (hasPermission) => {
-        if (!hasPermission && req.session.user.role !== 'admin') {
-            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-        }
-        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-livraisons.html'));
-    });
+    const hasPermission = await checkPermission(req.session.user.id, 'livraisons');
+    if (!hasPermission && req.session.user.role !== 'admin') {
+        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    }
+    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-livraisons.html'));
 });
 
-app.get('/admin/gestion-familles.html', (req, res) => {
+app.get('/admin/gestion-familles.html', async (req, res) => {
     if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
     
-    checkPermission(req.session.user.id, 'familles', (hasPermission) => {
-        if (!hasPermission && req.session.user.role !== 'admin') {
-            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-        }
-        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-familles.html'));
-    });
+    const hasPermission = await checkPermission(req.session.user.id, 'familles');
+    if (!hasPermission && req.session.user.role !== 'admin') {
+        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    }
+    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-familles.html'));
 });
 
-app.get('/admin/gestion-produits.html', (req, res) => {
+app.get('/admin/gestion-produits.html', async (req, res) => {
     if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
     
-    checkPermission(req.session.user.id, 'produits', (hasPermission) => {
-        if (!hasPermission && req.session.user.role !== 'admin') {
-            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-        }
-        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-produits.html'));
-    });
+    const hasPermission = await checkPermission(req.session.user.id, 'produits');
+    if (!hasPermission && req.session.user.role !== 'admin') {
+        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    }
+    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-produits.html'));
 });
 
-app.get('/admin/gestion-distribution.html', (req, res) => {
+app.get('/admin/gestion-distribution.html', async (req, res) => {
     if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
     
-    checkPermission(req.session.user.id, 'distribution', (hasPermission) => {
-        if (!hasPermission && req.session.user.role !== 'admin') {
-            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-        }
-        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-distribution.html'));
-    });
+    const hasPermission = await checkPermission(req.session.user.id, 'distribution');
+    if (!hasPermission && req.session.user.role !== 'admin') {
+        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    }
+    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-distribution.html'));
 });
 
-app.get('/admin/gestion-utilisateurs.html', (req, res) => {
+app.get('/admin/gestion-utilisateurs.html', async (req, res) => {
     if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
     
-    checkPermission(req.session.user.id, 'utilisateurs', (hasPermission) => {
-        if (!hasPermission && req.session.user.role !== 'admin') {
-            return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
-        }
-        res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-utilisateurs.html'));
-    });
+    const hasPermission = await checkPermission(req.session.user.id, 'utilisateurs');
+    if (!hasPermission && req.session.user.role !== 'admin') {
+        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    }
+    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-utilisateurs.html'));
 });
 
 // Pages Bénévole
@@ -2064,6 +2340,19 @@ app.get('/admin/gestion-messages.html', (req, res) => {
         return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
     }
     res.redirect('/admin/gestion-communication.html');
+});
+
+// ===== GESTIONNAIRE D'ERREURS GLOBAL =====
+app.use((err, req, res, next) => {
+    console.error('❌ Erreur globale:', err.stack);
+    res.status(500).json({ 
+        error: 'Erreur interne du serveur',
+        message: err.message 
+    });
+});
+
+app.use((req, res) => {
+    res.status(404).json({ error: 'Route non trouvée' });
 });
 
 // Démarrer le serveur
