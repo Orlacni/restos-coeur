@@ -6,17 +6,19 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "backup": "node backup.js",
     "pm2-start": "pm2 start server.js --name restos-coeur",
     "pm2-stop": "pm2 stop restos-coeur",
     "pm2-restart": "pm2 restart restos-coeur"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.4",
     "bcrypt": "^5.1.1",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
     "multer": "^1.4.5-lts.1",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
