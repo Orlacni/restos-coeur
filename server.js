@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 3000;
@@ -48,7 +49,7 @@ const db = createClient({
 });
 console.log('✅ Base de données Turso connectée');
 
-// ===== FONCTION CHECK PERMISSIONS (corrigée) =====
+// ===== FONCTION CHECK PERMISSIONS =====
 async function checkPermission(userId, permission) {
     try {
         const result = await db.execute({
@@ -337,6 +338,30 @@ async function initDatabase() {
             )
         `);
         console.log('✅ Table distributions créée');
+
+        // 17. Table suivi_retraits
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS suivi_retraits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                produit_id INTEGER NOT NULL,
+                produit_nom TEXT NOT NULL,
+                quantite INTEGER NOT NULL,
+                motif TEXT,
+                user_id INTEGER,
+                groupe_id TEXT,
+                date_retrait DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (produit_id) REFERENCES produits(id)
+            )
+        `);
+        console.log('✅ Table suivi_retraits créée');
+
+        // Migration : ajouter la colonne groupe_id si la table existait déjà sans elle
+        try {
+            await db.execute('ALTER TABLE suivi_retraits ADD COLUMN groupe_id TEXT');
+            console.log('✅ Colonne groupe_id ajoutée à suivi_retraits');
+        } catch (e) {
+            // La colonne existe déjà, rien à faire
+        }
 
         console.log('✅ Toutes les tables sont créées ou existent déjà');
 
@@ -646,7 +671,9 @@ app.get('/api/messages', async (req, res) => {
     }
 });
 
-app.get('/api/distributions', async (req, res) => {
+// Dates de messages/annonces de type "distribution" (NB: renommé pour ne pas
+// entrer en collision avec /api/distributions, la vraie route de gestion des distributions)
+app.get('/api/messages/dates-distribution', async (req, res) => {
     try {
         const result = await db.execute('SELECT * FROM messages WHERE type = ? ORDER BY date_distribution ASC', ['distribution']);
         res.json(result.rows);
@@ -1215,7 +1242,7 @@ app.post('/api/admin/produits/import', async (req, res) => {
 // ============ ROUTES LIVRAISONS ============
 
 app.get('/api/livraisons', async (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
+    if (!req.session.user) {
         return res.status(403).json({ error: 'Non autorisé' });
     }
     
@@ -1777,16 +1804,12 @@ app.put('/api/admin/inscriptions/:id/statut', async (req, res) => {
 
 // ============ ROUTES DISTRIBUTION ============
 
-app.get('/api/distributions/:campagneId', async (req, res) => {
+// GET - Récupérer toutes les distributions
+app.get('/api/distributions', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
-    const campagneId = req.params.campagneId;
-    
     try {
-        const result = await db.execute({
-            sql: 'SELECT * FROM distributions WHERE campagne_id = ? ORDER BY date_distribution DESC',
-            args: [campagneId]
-        });
+        const result = await db.execute('SELECT * FROM distributions ORDER BY date_distribution DESC');
         res.json(result.rows);
     } catch (error) {
         console.error('❌ Erreur:', error);
@@ -1794,6 +1817,7 @@ app.get('/api/distributions/:campagneId', async (req, res) => {
     }
 });
 
+// GET - Récupérer une distribution par ID
 app.get('/api/distributions/:id', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
@@ -1809,7 +1833,7 @@ app.get('/api/distributions/:id', async (req, res) => {
         if (row.besoins_json) {
             try {
                 var data = JSON.parse(row.besoins_json);
-                resultData.besoins = data.besoins;
+                resultData.besoins = data;
                 resultData.familles_par_personne = data.familles_par_personne;
                 resultData.total_familles = data.total_familles;
                 resultData.multiplicateur = data.multiplicateur;
@@ -1832,85 +1856,7 @@ app.get('/api/distributions/:id', async (req, res) => {
     }
 });
 
-app.post('/api/distributions', async (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Non autorisé' });
-    }
-    
-    const { campagne_id, date_distribution, periode, livraison_ids } = req.body;
-    try {
-        await db.execute({
-            sql: 'INSERT INTO distributions (campagne_id, date_distribution, periode, livraison_ids, created_by) VALUES (?, ?, ?, ?, ?)',
-            args: [campagne_id, date_distribution, periode, JSON.stringify(livraison_ids), req.session.user.id]
-        });
-        res.json({ success: true });
-    } catch (error) {
-        console.error('❌ Erreur:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.post('/api/distributions/:id/save-data', async (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Non autorisé' });
-    }
-    
-    const { besoins, famillesParPersonne, totalFamilles, multiplicateur } = req.body;
-    const distributionId = req.params.id;
-    
-    const data = {
-        besoins: besoins,
-        familles_par_personne: famillesParPersonne,
-        total_familles: totalFamilles,
-        multiplicateur: multiplicateur
-    };
-    
-    try {
-        await db.execute({
-            sql: 'UPDATE distributions SET besoins_json = ? WHERE id = ?',
-            args: [JSON.stringify(data), distributionId]
-        });
-        res.json({ success: true });
-    } catch (error) {
-        console.error('❌ Erreur:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.delete('/api/distributions/:id', async (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Non autorisé' });
-    }
-    
-    try {
-        await db.execute({
-            sql: 'DELETE FROM distributions WHERE id = ?',
-            args: [req.params.id]
-        });
-        res.json({ success: true });
-    } catch (error) {
-        console.error('❌ Erreur:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.put('/api/distributions/:id/valider', async (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Non autorisé' });
-    }
-    
-    try {
-        await db.execute({
-            sql: 'UPDATE distributions SET statut = ? WHERE id = ?',
-            args: ['valide', req.params.id]
-        });
-        res.json({ success: true });
-    } catch (error) {
-        console.error('❌ Erreur:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
+// GET - Récupérer les besoins d'une distribution
 app.get('/api/distributions/:id/besoins', async (req, res) => {
     if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
     
@@ -1974,129 +1920,86 @@ app.get('/api/distributions/:id/besoins', async (req, res) => {
     }
 });
 
-app.get('/api/distribution/stocks', async (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
-    
-    try {
-        const result = await db.execute(`
-            SELECT l.*, p.groupe AS produit_groupe, p.points_total AS produit_points,
-                   p.est_divisible AS produit_est_divisible, p.nombre_unites AS produit_nombre_unites
-            FROM livraisons l
-            LEFT JOIN produits p ON p.id = l.produit_id
-        `);
-        const livraisons = result.rows;
-        
-        var stocks = {};
-        for (var i = 0; i < livraisons.length; i++) {
-            var l = livraisons[i];
-            var produitId = l.produit_id;
-            
-            if (!stocks[produitId]) {
-                stocks[produitId] = {
-                    produit_id: produitId,
-                    nom: l.produit_nom,
-                    groupe: l.produit_groupe,
-                    points: l.produit_points,
-                    quantite: 0,
-                    est_divisible: l.produit_est_divisible || 0,
-                    nb_unites_par_sachet: l.produit_nombre_unites || 1,
-                    points_par_unite: 0
-                };
-            }
-            stocks[produitId].quantite += (l.total_a_distribuer || 0);
-        }
-        
-        res.json(Object.values(stocks));
-    } catch (error) {
-        console.error('❌ Erreur:', error);
-        res.status(500).json({ error: error.message });
+// POST - Créer une distribution
+app.post('/api/distributions', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(403).json({ error: 'Non autorisé' });
     }
-});
-
-// ============ ROUTES MESSAGERIE ============
-
-app.get('/api/conversations', async (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+    const hasPermission = await checkPermission(req.session.user.id, 'distribution');
+    if (!hasPermission && req.session.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
     
-    const userId = req.session.user.id;
-    
+    const { campagne_id, date_distribution, periode, livraison_ids } = req.body;
     try {
         const result = await db.execute({
-            sql: `
-                SELECT c.*, 
-                       (SELECT COUNT(*) FROM messages_conversation WHERE conversation_id = c.id AND is_read = 0 AND user_id != ?) as unread_count,
-                       (SELECT message FROM messages_conversation WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
-                       (SELECT created_at FROM messages_conversation WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message_date
-                FROM conversations c
-                JOIN conversation_participants cp ON cp.conversation_id = c.id
-                WHERE cp.user_id = ?
-                ORDER BY last_message_date DESC
-            `,
-            args: [userId, userId]
+            sql: 'INSERT INTO distributions (campagne_id, date_distribution, periode, livraison_ids, created_by) VALUES (?, ?, ?, ?, ?)',
+            args: [campagne_id, date_distribution, periode || 'hebdomadaire', JSON.stringify(livraison_ids || []), req.session.user.id]
         });
-        res.json(result.rows);
+        
+        const idResult = await db.execute('SELECT last_insert_rowid() as id');
+        const id = idResult.rows[0].id;
+        
+        res.json({ success: true, id: id });
     } catch (error) {
         console.error('❌ Erreur:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-app.get('/api/conversations/:id/messages', async (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
+// POST - Sauvegarder les données d'une distribution
+app.post('/api/distributions/:id/save-data', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+    const hasPermission = await checkPermission(req.session.user.id, 'distribution');
+    if (!hasPermission && req.session.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
     
-    const conversationId = req.params.id;
-    const userId = req.session.user.id;
+    const { besoins, famillesParPersonne, totalFamilles, multiplicateur, ventilation } = req.body;
+    const distributionId = req.params.id;
+    
+    const data = {
+        besoins: besoins,
+        familles_par_personne: famillesParPersonne,
+        total_familles: totalFamilles,
+        multiplicateur: multiplicateur
+    };
     
     try {
-        const participantResult = await db.execute({
-            sql: 'SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?',
-            args: [conversationId, userId]
-        });
-        if (!participantResult.rows[0]) return res.status(403).json({ error: 'Accès non autorisé' });
-        
-        await db.execute({
-            sql: 'UPDATE messages_conversation SET is_read = 1 WHERE conversation_id = ? AND user_id != ?',
-            args: [conversationId, userId]
-        });
-        
-        const messagesResult = await db.execute({
-            sql: `
-                SELECT m.*, u.nom, u.prenom, u.avatar
-                FROM messages_conversation m
-                JOIN users u ON u.id = m.user_id
-                WHERE m.conversation_id = ?
-                ORDER BY m.created_at ASC
-            `,
-            args: [conversationId]
-        });
-        res.json(messagesResult.rows);
+        if (ventilation) {
+            await db.execute({
+                sql: 'UPDATE distributions SET besoins_json = ?, ventilation_json = ? WHERE id = ?',
+                args: [JSON.stringify(data), JSON.stringify(ventilation), distributionId]
+            });
+        } else {
+            await db.execute({
+                sql: 'UPDATE distributions SET besoins_json = ? WHERE id = ?',
+                args: [JSON.stringify(data), distributionId]
+            });
+        }
+        res.json({ success: true });
     } catch (error) {
         console.error('❌ Erreur:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/conversations/:id/messages', async (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
-    
-    const conversationId = req.params.id;
-    const userId = req.session.user.id;
-    const { message } = req.body;
-    
-    if (!message || message.trim() === '') {
-        return res.status(400).json({ error: 'Message vide' });
+// DELETE - Supprimer une distribution
+app.delete('/api/distributions/:id', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+    const hasPermission = await checkPermission(req.session.user.id, 'distribution');
+    if (!hasPermission && req.session.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Non autorisé' });
     }
     
     try {
-        const participantResult = await db.execute({
-            sql: 'SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?',
-            args: [conversationId, userId]
-        });
-        if (!participantResult.rows[0]) return res.status(403).json({ error: 'Accès non autorisé' });
-        
         await db.execute({
-            sql: 'INSERT INTO messages_conversation (conversation_id, user_id, message) VALUES (?, ?, ?)',
-            args: [conversationId, userId, message]
+            sql: 'DELETE FROM distributions WHERE id = ?',
+            args: [req.params.id]
         });
         res.json({ success: true });
     } catch (error) {
@@ -2105,94 +2008,273 @@ app.post('/api/conversations/:id/messages', async (req, res) => {
     }
 });
 
-app.post('/api/conversations/private', async (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
-    
-    const { other_user_id } = req.body;
-    const userId = req.session.user.id;
-    
-    try {
-        const existingResult = await db.execute({
-            sql: `
-                SELECT c.id FROM conversations c
-                JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
-                JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
-                WHERE c.type = 'private'
-            `,
-            args: [userId, other_user_id]
-        });
-        
-        if (existingResult.rows.length > 0) {
-            return res.json({ success: true, conversation_id: existingResult.rows[0].id });
-        }
-        
-        await db.execute({
-            sql: 'INSERT INTO conversations (type, created_by) VALUES (?, ?)',
-            args: ['private', userId]
-        });
-        
-        const convResult = await db.execute({
-            sql: 'SELECT last_insert_rowid() as id'
-        });
-        const conversationId = convResult.rows[0].id;
-        
-        await db.execute({
-            sql: 'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)',
-            args: [conversationId, userId, conversationId, other_user_id]
-        });
-        res.json({ success: true, conversation_id: conversationId });
-    } catch (error) {
-        console.error('❌ Erreur:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+// ============ ROUTES SUIVI DISTRIBUTION ============
 
-app.post('/api/conversations/group', async (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
-    
-    const { participants, nom } = req.body;
-    const userId = req.session.user.id;
-    
-    if (!participants || !Array.isArray(participants) || participants.length < 2) {
-        return res.status(400).json({ error: 'Au moins 2 participants requis' });
+// POST - Effectuer un retrait
+// POST - Retrait GROUPÉ (tous les produits d'une même "famille servie" en un seul appel,
+// beaucoup plus rapide qu'un appel par produit, et permet ensuite d'annuler tout le groupe d'un coup)
+app.post('/api/suivi/retrait-groupe', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(403).json({ error: 'Non autorisé' });
     }
-    
-    if (!participants.includes(userId)) {
-        participants.push(userId);
+
+    const { motif, produits } = req.body;
+
+    if (!Array.isArray(produits) || produits.length === 0) {
+        return res.status(400).json({ error: 'Aucun produit à retirer' });
     }
-    
-    let conversationNom = nom || 'Groupe de discussion';
-    
+
+    for (const p of produits) {
+        if (!p.produit_id || !p.quantite || p.quantite <= 0) {
+            return res.status(400).json({ error: 'Données invalides' });
+        }
+    }
+
     try {
-        await db.execute({
-            sql: 'INSERT INTO conversations (nom, type, created_by) VALUES (?, ?, ?)',
-            args: [conversationNom, 'group', userId]
+        // Récupérer noms + stock disponible pour tous les produits demandés en une fois
+        const ids = produits.map(p => p.produit_id);
+        const placeholders = ids.map(() => '?').join(',');
+
+        const produitsResult = await db.execute({
+            sql: `SELECT id, nom FROM produits WHERE id IN (${placeholders})`,
+            args: ids
         });
-        
-        const convResult = await db.execute({
-            sql: 'SELECT last_insert_rowid() as id'
+        const produitsInfo = {};
+        produitsResult.rows.forEach(row => { produitsInfo[row.id] = row.nom; });
+
+        const stockResult = await db.execute({
+            sql: `
+                SELECT p.id,
+                    COALESCE(l.total_livraisons, 0) - COALESCE(r.total_retraits, 0) as stock_disponible
+                FROM produits p
+                LEFT JOIN (SELECT produit_id, SUM(total_a_distribuer) as total_livraisons FROM livraisons GROUP BY produit_id) l ON l.produit_id = p.id
+                LEFT JOIN (SELECT produit_id, SUM(quantite) as total_retraits FROM suivi_retraits GROUP BY produit_id) r ON r.produit_id = p.id
+                WHERE p.id IN (${placeholders})
+            `,
+            args: ids
         });
-        const conversationId = convResult.rows[0].id;
-        
-        for (const p of participants) {
+        const stockParProduit = {};
+        stockResult.rows.forEach(row => { stockParProduit[row.id] = row.stock_disponible || 0; });
+
+        // Vérifier le stock disponible pour chaque produit avant d'insérer quoi que ce soit
+        for (const p of produits) {
+            const nom = produitsInfo[p.produit_id];
+            if (!nom) {
+                return res.status(404).json({ error: 'Produit non trouvé (id ' + p.produit_id + ')' });
+            }
+            const dispo = stockParProduit[p.produit_id] || 0;
+            if (p.quantite > dispo) {
+                return res.status(400).json({ error: 'Stock insuffisant pour ' + nom, produit: nom, stock_disponible: dispo });
+            }
+        }
+
+        const groupeId = crypto.randomUUID();
+
+        for (const p of produits) {
             await db.execute({
-                sql: 'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)',
-                args: [conversationId, p]
+                sql: `INSERT INTO suivi_retraits (produit_id, produit_nom, quantite, motif, user_id, groupe_id)
+                      VALUES (?, ?, ?, ?, ?, ?)`,
+                args: [p.produit_id, produitsInfo[p.produit_id], p.quantite, motif || null, req.session.user.id, groupeId]
             });
         }
-        
-        res.json({ success: true, conversation_id: conversationId });
+
+        res.json({ success: true, groupe_id: groupeId });
+
+    } catch (error) {
+        console.error('❌ Erreur retrait groupé:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE - Annuler un retrait groupé (remet le stock en supprimant les lignes du groupe)
+app.delete('/api/suivi/retrait-groupe/:groupeId', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+
+    try {
+        const result = await db.execute({
+            sql: 'DELETE FROM suivi_retraits WHERE groupe_id = ?',
+            args: [req.params.groupeId]
+        });
+        res.json({ success: true, lignes_supprimees: result.rowsAffected });
+    } catch (error) {
+        console.error('❌ Erreur annulation retrait:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST - Annuler des retraits par leurs identifiants précis (remet le stock).
+// Fonctionne pour tous les retraits, y compris les anciens sans groupe_id.
+app.post('/api/suivi/retraits/annuler', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'Aucun identifiant fourni' });
+    }
+    const idsValides = ids.map(id => parseInt(id)).filter(id => Number.isInteger(id));
+    if (idsValides.length === 0) {
+        return res.status(400).json({ error: 'Identifiants invalides' });
+    }
+
+    try {
+        const placeholders = idsValides.map(() => '?').join(',');
+        const result = await db.execute({
+            sql: `DELETE FROM suivi_retraits WHERE id IN (${placeholders})`,
+            args: idsValides
+        });
+        res.json({ success: true, lignes_supprimees: result.rowsAffected });
+    } catch (error) {
+        console.error('❌ Erreur annulation retraits:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/suivi/retrait', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+
+    const { produit_id, quantite, motif } = req.body;
+    
+    if (!produit_id || !quantite || quantite <= 0) {
+        return res.status(400).json({ error: 'Données invalides' });
+    }
+
+    try {
+        const produitResult = await db.execute({
+            sql: 'SELECT nom, points_total FROM produits WHERE id = ?',
+            args: [produit_id]
+        });
+        const produit = produitResult.rows[0];
+        if (!produit) {
+            return res.status(404).json({ error: 'Produit non trouvé' });
+        }
+
+        // Vérifier le stock disponible
+        const stockResult = await db.execute({
+            sql: `
+                SELECT COALESCE(SUM(total_a_distribuer), 0) as total_livraisons
+                FROM livraisons
+                WHERE produit_id = ?
+            `,
+            args: [produit_id]
+        });
+        const totalLivraisons = stockResult.rows[0].total_livraisons || 0;
+
+        const retraitsResult = await db.execute({
+            sql: `
+                SELECT COALESCE(SUM(quantite), 0) as total_retraits
+                FROM suivi_retraits
+                WHERE produit_id = ?
+            `,
+            args: [produit_id]
+        });
+        const totalRetraits = retraitsResult.rows[0].total_retraits || 0;
+
+        const stockDisponible = totalLivraisons - totalRetraits;
+
+        if (quantite > stockDisponible) {
+            return res.status(400).json({ 
+                error: 'Stock insuffisant', 
+                stock_disponible: stockDisponible 
+            });
+        }
+
+        await db.execute({
+            sql: `INSERT INTO suivi_retraits (produit_id, produit_nom, quantite, motif, user_id) 
+                  VALUES (?, ?, ?, ?, ?)`,
+            args: [produit_id, produit.nom, quantite, motif || null, req.session.user.id]
+        });
+
+        res.json({ success: true, stock_restant: stockDisponible - quantite });
+
+    } catch (error) {
+        console.error('❌ Erreur retrait:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET - Stock disponible réel par produit (livraisons cumulées - tous les retraits déjà effectués)
+app.get('/api/suivi/stock', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+
+    try {
+        const result = await db.execute(`
+            SELECT
+                p.id,
+                p.nom,
+                p.groupe,
+                p.points_total,
+                COALESCE(l.total_livraisons, 0) as total_livraisons,
+                COALESCE(r.total_retraits, 0) as total_retraits,
+                COALESCE(l.total_livraisons, 0) - COALESCE(r.total_retraits, 0) as stock_disponible
+            FROM produits p
+            LEFT JOIN (
+                SELECT produit_id, SUM(total_a_distribuer) as total_livraisons
+                FROM livraisons
+                GROUP BY produit_id
+            ) l ON l.produit_id = p.id
+            LEFT JOIN (
+                SELECT produit_id, SUM(quantite) as total_retraits
+                FROM suivi_retraits
+                GROUP BY produit_id
+            ) r ON r.produit_id = p.id
+            ORDER BY p.nom
+        `);
+        res.json(result.rows);
     } catch (error) {
         console.error('❌ Erreur:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-app.get('/api/users/benevoles', async (req, res) => {
-    if (!req.session.user) return res.status(403).json({ error: 'Non autorisé' });
-    
+// GET - Récupérer les retraits du jour
+app.get('/api/suivi/retraits/jour', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+
     try {
-        const result = await db.execute('SELECT id, nom, prenom, email, avatar FROM users WHERE role_id IN (1, 2) ORDER BY nom');
+        const result = await db.execute({
+            sql: `
+                SELECT sr.*, u.nom as user_nom, u.prenom as user_prenom
+                FROM suivi_retraits sr
+                LEFT JOIN users u ON u.id = sr.user_id
+                WHERE DATE(sr.date_retrait) = DATE('now')
+                ORDER BY sr.date_retrait DESC
+            `
+        });
+        res.json(result.rows);
+    } catch (error) {
+        console.error('❌ Erreur:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET - Récupérer l'historique des retraits d'un produit
+app.get('/api/suivi/retraits/:produitId', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(403).json({ error: 'Non autorisé' });
+    }
+
+    try {
+        const result = await db.execute({
+            sql: `
+                SELECT sr.*, u.nom as user_nom, u.prenom as user_prenom
+                FROM suivi_retraits sr
+                LEFT JOIN users u ON u.id = sr.user_id
+                WHERE sr.produit_id = ?
+                ORDER BY sr.date_retrait DESC
+                LIMIT 100
+            `,
+            args: [req.params.produitId]
+        });
         res.json(result.rows);
     } catch (error) {
         console.error('❌ Erreur:', error);
@@ -2307,6 +2389,16 @@ app.get('/admin/gestion-distribution.html', async (req, res) => {
         return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
     }
     res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-distribution.html'));
+});
+
+app.get('/admin/gestion-suivi-distribution.html', async (req, res) => {
+    if (!req.session.user) return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    
+    const hasPermission = await checkPermission(req.session.user.id, 'distribution');
+    if (!hasPermission && req.session.user.role !== 'admin') {
+        return res.sendFile(path.join(__dirname, 'src', 'pages', 'login.html'));
+    }
+    res.sendFile(path.join(__dirname, 'src', 'pages', 'admin', 'gestion-suivi-distribution.html'));
 });
 
 app.get('/admin/gestion-utilisateurs.html', async (req, res) => {
