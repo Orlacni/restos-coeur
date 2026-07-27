@@ -148,12 +148,13 @@ function generateMenu() {
         { href: '/benevole/planning.html', icon: 'fas fa-calendar-check', label: 'Mes missions', permission: 'planning', adminOnly: false, hideForAdmin: true },
         { href: '/admin/gestion-planning.html', icon: 'fas fa-calendar-alt', label: 'Gestion planning', permission: 'gestion_planning' },
         { href: '/messagerie.html', icon: 'fas fa-envelope', label: 'Messagerie', permission: 'messagerie' },
-        { divider: true, title: 'Accompagnement' },  // ← sans émoji
+        { divider: true, title: 'Accompagnement' },
         { href: '/admin/gestion-distribution.html', icon: 'fas fa-hand-holding-heart', label: 'Distribution', permission: 'distribution' },
+        { href: '/admin/gestion-suivi-distribution.html', icon: 'fas fa-clipboard-list', label: 'Suivi distribution', permission: 'distribution' },
         { href: '/admin/gestion-livraisons.html', icon: 'fas fa-truck', label: 'Livraisons', permission: 'livraisons' },
         { href: '/admin/gestion-familles.html', icon: 'fas fa-users', label: 'Familles', permission: 'familles' },
         { href: '/admin/gestion-produits.html', icon: 'fas fa-box', label: 'Produits', permission: 'produits' },
-        { href: '/admin/gestion-utilisateurs.html', icon: 'fas fa-user-shield', label: 'Bénévoles', permission: 'Bénévoles' },
+        { href: '/admin/gestion-utilisateurs.html', icon: 'fas fa-user-shield', label: 'Bénévoles', permission: 'utilisateurs' },
     ];
     
     let html = '';
@@ -162,9 +163,9 @@ function generateMenu() {
     for (const item of allMenuItems) {
         if (item.divider) {
             const sectionTitle = item.title || 'Menu principal';
-        html += `<div class="sidebar-section">${sectionTitle}</div>`;
-        continue;
-    }
+            html += `<div class="sidebar-section">${sectionTitle}</div>`;
+            continue;
+        }
         
         // Vérifier la permission
         let hasPermission = false;
@@ -181,9 +182,9 @@ function generateMenu() {
             continue;
         }
         if (item.hideForAdmin && isAdmin) {
-    console.log(`❌ ${item.label} - caché pour admin`);
-    continue;
-}
+            console.log(`❌ ${item.label} - caché pour admin`);
+            continue;
+        }
 
         console.log(`✅ ${item.label} (${item.permission}) - autorisé`);
         count++;
