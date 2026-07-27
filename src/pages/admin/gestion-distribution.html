@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* ===== STYLES ===== */
         .campagne-selector {
             background: var(--bg-primary);
             border-radius: 20px;
@@ -144,43 +143,28 @@
             color: var(--text-secondary);
         }
 
-        .emplacements-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-            gap: 1.5rem;
-            margin: 1rem 0;
-        }
-        .emplacement-card {
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
             background: var(--bg-primary);
             border-radius: 16px;
-            padding: 1rem;
-            box-shadow: var(--shadow-sm);
-            border-left: 4px solid var(--restos-rose);
         }
-        .emplacement-card h3 {
-            color: var(--restos-rose);
-            margin-bottom: 0.5rem;
-            font-size: 1rem;
-        }
-        .emplacement-card .repartition-table {
-            font-size: 0.8rem;
-            margin-bottom: 0.5rem;
-        }
-        .emplacement-card .repartition-table th,
-        .emplacement-card .repartition-table td {
-            padding: 0.3rem 0.5rem;
-        }
-
-        .btn-imprimer {
-            background: #17a2b8;
+        .date-badge {
+            background: var(--restos-rose);
             color: white;
-            border: none;
-            padding: 0.4rem 0.8rem;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 0.8rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
         }
-        .btn-imprimer:hover { opacity: 0.9; }
+        .distribution-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
 
         .stock-restant-grid {
             display: grid;
@@ -209,58 +193,149 @@
             color: var(--text-secondary);
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 2rem;
-            color: var(--text-secondary);
+        .historique-distributions {
             background: var(--bg-primary);
             border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm);
         }
-        .date-badge {
+        .historique-distributions h3 {
+            color: var(--restos-rose);
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .historique-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .campagne-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-bottom: 0.75rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+        .campagne-tabs .tab-btn {
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.4rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .campagne-tabs .tab-btn:hover {
+            border-color: var(--restos-rose);
+        }
+        .campagne-tabs .tab-btn.active {
             background: var(--restos-rose);
+            border-color: var(--restos-rose);
+            color: white;
+        }
+        .campagne-tabs .tab-btn .count {
+            opacity: 0.75;
+            font-weight: 400;
+            margin-left: 0.25rem;
+        }
+        .historique-grid .hist-card {
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            border: 2px solid var(--border-color);
+            background: var(--bg-primary);
+            font-weight: 500;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .historique-grid .hist-card .hist-date {
+            font-weight: 700;
+        }
+        .historique-grid .hist-card .hist-info {
+            font-size: 0.7rem;
+            opacity: 0.7;
+        }
+        .btn-supprimer-hist {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.6rem;
+        }
+        .btn-supprimer-hist:hover {
+            background: #c82333;
+        }
+        .btn-voir-hist {
+            background: var(--restos-rose);
+            color: white;
+            border: none;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.6rem;
+        }
+
+        .badge-save-success {
+            background: #28a745;
             color: white;
             padding: 0.2rem 0.6rem;
             border-radius: 20px;
             font-size: 0.7rem;
-        }
-        .distribution-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
         }
 
         @media (max-width: 768px) {
             .recap-points { grid-template-columns: 1fr 1fr; }
-            .stock-restant-grid { grid-template-columns: 1fr 1fr; }
-            .emplacements-grid { grid-template-columns: 1fr; }
             .campagne-selector { flex-direction: column; align-items: flex-start; }
+            .historique-grid { flex-direction: column; }
         }
 
         #feuille-impression { display: none; }
         @media print {
-            .sidebar, .top-bar, .campagne-selector, .btn-calculer, .btn-imprimer, .menu-toggle { display: none !important; }
+            .sidebar, .top-bar, .campagne-selector, .btn-calculer, .menu-toggle { display: none !important; }
             #distribution-content, #feuille-impression.hors-impression { display: none !important; }
             #feuille-impression.impression-active { display: block !important; }
             .main-content { margin: 0 !important; padding: 0 !important; }
-        }
-        .feuille-produit-ligne {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.4rem 0;
-            border-bottom: 1px solid #ddd;
-            font-size: 1rem;
-        }
-        .feuille-titre {
-            text-align: center;
-            margin-bottom: 1.5rem;
         }
 
         #progressModal .modal-content {
             max-width: 400px;
             text-align: center;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        .notification-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            z-index: 10000;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease;
+        }
+        .notification-toast.error {
+            background: #dc3545;
         }
     </style>
 </head>
@@ -311,6 +386,18 @@
 
             <div class="card">
                 <h2>🍽️ Préparation des distributions</h2>
+
+                <!-- Historique des distributions -->
+                <div class="historique-distributions">
+                    <h3>
+                        📋 Historique des distributions enregistrées
+                        <span id="histCount" style="font-weight:400;font-size:0.85rem;color:var(--text-secondary);">0</span>
+                    </h3>
+                    <div class="campagne-tabs" id="campagneTabs" style="display:none;"></div>
+                    <div class="historique-grid" id="historiqueGrid">
+                        <span style="color:var(--text-secondary);font-size:0.85rem;">Aucune distribution enregistrée</span>
+                    </div>
+                </div>
 
                 <div class="campagne-selector">
                     <div class="form-group">
@@ -363,6 +450,7 @@
         // CONFIGURATION
         // ============================================================
         const MARGE_MAX_DEPASSEMENT = 2;
+        const MARGE_MAX_DEPASSEMENT_STOCK = 2;
 
         const CATEGORIES = [
             { key: 'protides', label: '🥩 Protides' },
@@ -375,6 +463,7 @@
         var produits = [];
         var emplacements = [];
         var dernierResultat = null;
+        var distributionsHistorique = [];
 
         // ============================================================
         // FONCTIONS UTILES
@@ -397,6 +486,175 @@
             if (!id) return 'Emplacement non défini';
             var e = emplacements.find(function(e) { return e.id == id; });
             return e ? e.nom : 'Emplacement non défini';
+        }
+
+        function showNotification(message, type) {
+            var notif = document.createElement('div');
+            notif.className = 'notification-toast' + (type === 'error' ? ' error' : '');
+            notif.textContent = message;
+            document.body.appendChild(notif);
+            setTimeout(function() {
+                notif.style.animation = 'slideOut 0.3s ease';
+                setTimeout(function() { notif.remove(); }, 300);
+            }, 4000);
+        }
+
+        // ============================================================
+        // CHARGEMENT DE L'HISTORIQUE
+        // ============================================================
+        var campagneTabActive = 'toutes';
+
+        async function chargerHistoriqueDistributions() {
+            try {
+                var r = await fetch('/api/distributions');
+                if (!r.ok) throw new Error('Erreur serveur (' + r.status + ')');
+                distributionsHistorique = await r.json();
+                afficherOngletsCampagnes();
+                afficherHistorique();
+            } catch (error) {
+                console.error('❌ Erreur chargement historique:', error);
+                document.getElementById('historiqueGrid').innerHTML =
+                    '<span style="color:#dc3545;font-size:0.85rem;">❌ Impossible de charger l\'historique : ' + error.message + '</span>';
+            }
+        }
+
+        function nomCampagne(campagneId) {
+            var c = campagnes.find(function(c) { return c.id == campagneId; });
+            return c ? (c.annee + ' - ' + c.saison) : ('Campagne #' + campagneId);
+        }
+
+        function afficherOngletsCampagnes() {
+            var tabsContainer = document.getElementById('campagneTabs');
+
+            if (!distributionsHistorique || distributionsHistorique.length === 0) {
+                tabsContainer.style.display = 'none';
+                tabsContainer.innerHTML = '';
+                return;
+            }
+
+            var parCampagne = {};
+            distributionsHistorique.forEach(function(d) {
+                var cid = d.campagne_id;
+                if (!parCampagne[cid]) parCampagne[cid] = 0;
+                parCampagne[cid]++;
+            });
+
+            var campagneIds = Object.keys(parCampagne).sort(function(a, b) {
+                return nomCampagne(b).localeCompare(nomCampagne(a));
+            });
+
+            // Si l'onglet actif n'existe plus (ou "toutes" au premier chargement), garder tel quel
+            var html = '<button class="tab-btn ' + (campagneTabActive === 'toutes' ? 'active' : '') + '" onclick="selectionnerOngletCampagne(\'toutes\')">';
+            html += '📁 Toutes <span class="count">(' + distributionsHistorique.length + ')</span></button>';
+
+            campagneIds.forEach(function(cid) {
+                var active = (campagneTabActive == cid) ? 'active' : '';
+                html += '<button class="tab-btn ' + active + '" onclick="selectionnerOngletCampagne(\'' + cid + '\')">';
+                html += '📅 ' + nomCampagne(cid) + ' <span class="count">(' + parCampagne[cid] + ')</span></button>';
+            });
+
+            tabsContainer.style.display = 'flex';
+            tabsContainer.innerHTML = html;
+        }
+
+        function selectionnerOngletCampagne(cid) {
+            campagneTabActive = cid;
+            afficherOngletsCampagnes();
+            afficherHistorique();
+        }
+
+        function afficherHistorique() {
+            var container = document.getElementById('historiqueGrid');
+            var countEl = document.getElementById('histCount');
+
+            if (!distributionsHistorique || distributionsHistorique.length === 0) {
+                container.innerHTML = '<span style="color:var(--text-secondary);font-size:0.85rem;">Aucune distribution enregistrée</span>';
+                countEl.textContent = '0';
+                return;
+            }
+
+            var listeFiltree = campagneTabActive === 'toutes'
+                ? distributionsHistorique
+                : distributionsHistorique.filter(function(d) { return d.campagne_id == campagneTabActive; });
+
+            countEl.textContent = distributionsHistorique.length;
+
+            if (listeFiltree.length === 0) {
+                container.innerHTML = '<span style="color:var(--text-secondary);font-size:0.85rem;">Aucune distribution pour cette campagne</span>';
+                return;
+            }
+
+            var html = '';
+
+            var recentes = listeFiltree.slice(0, 10);
+            for (var i = 0; i < recentes.length; i++) {
+                var d = recentes[i];
+                var date = new Date(d.date_distribution).toLocaleDateString('fr-FR');
+                var periode = d.periode || 'hebdomadaire';
+
+                html += `
+                    <div class="hist-card">
+                        <span class="hist-date">📅 ${date}</span>
+                        <span class="hist-info">${nomCampagne(d.campagne_id)} • ${periode} • ${d.statut || 'préparée'}</span>
+                        <button class="btn-voir-hist" onclick="voirDetailArchive(${d.id})" title="Revoir le détail de cette distribution">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-voir-hist" onclick="voirDistribution(${d.id})" title="Ouvrir dans le suivi pour servir les familles">
+                            <i class="fas fa-people-carry-box"></i>
+                        </button>
+                        <button class="btn-supprimer-hist" onclick="supprimerDistributionHist(${d.id})" title="Supprimer">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+            }
+
+            if (listeFiltree.length > 10) {
+                html += `<div class="hist-card" style="border-style:dashed;">
+                    <span style="font-size:0.7rem;">+${listeFiltree.length - 10} autres</span>
+                </div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        async function supprimerDistributionHist(id) {
+            if (!confirm('Supprimer cette distribution ?')) return;
+            try {
+                await fetch('/api/distributions/' + id, { method: 'DELETE' });
+                await chargerHistoriqueDistributions();
+                showNotification('Distribution supprimée', 'info');
+            } catch (error) {
+                console.error('❌ Erreur:', error);
+                alert('Erreur lors de la suppression');
+            }
+        }
+
+        function voirDistribution(id) {
+            window.location.href = '/admin/gestion-suivi-distribution.html?dist=' + id;
+        }
+
+        async function voirDetailArchive(id) {
+            try {
+                var r = await fetch('/api/distributions/' + id);
+                var data = await r.json();
+
+                if (!data.ventilation) {
+                    showNotification('⚠️ Détail non disponible pour cette distribution (ancienne archive sans ventilation enregistrée).', 'error');
+                    return;
+                }
+
+                var resultat = data.ventilation;
+                resultat.campagne = campagnes.find(function(c) { return c.id == data.campagne_id; });
+
+                afficherResultats(resultat, true);
+
+                document.getElementById('distribution-content').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                showNotification('📁 Détail archivé du ' + new Date(data.date_distribution).toLocaleDateString('fr-FR') + ' affiché', 'info');
+            } catch (error) {
+                console.error('❌ Erreur:', error);
+                showNotification('❌ Erreur lors du chargement de l\'archive', 'error');
+            }
         }
 
         // ============================================================
@@ -470,32 +728,32 @@
         // RÉCUPÉRATION DU STOCK PAR PÉRIODE
         // ============================================================
         async function getStockPeriode(dateDebut, dateFin) {
-    var r = await fetch('/api/livraisons');
-    var parDate = await r.json();
+            var r = await fetch('/api/livraisons');
+            var parDate = await r.json();
 
-    var stock = {};
-    var infos = {};
-    var dates = Object.keys(parDate);
+            var stock = {};
+            var infos = {};
+            var dates = Object.keys(parDate);
 
-    for (var i = 0; i < dates.length; i++) {
-        var d = dates[i];
-        if (dateDebut && d < dateDebut) continue;
-        if (dateFin && d > dateFin) continue;
-        var livraisonsJour = parDate[d];
-        for (var j = 0; j < livraisonsJour.length; j++) {
-            var l = livraisonsJour[j];
-            var pid = l.produit_id;
-            if (!pid) continue;
-            stock[pid] = (stock[pid] || 0) + (parseFloat(l.total_a_distribuer) || 0);
-            infos[pid] = { 
-                nom: l.produit || pid, 
-                reference: '',
-                emplacement_id: l.emplacement_id || null // Récupération de l'emplacement
-            };
+            for (var i = 0; i < dates.length; i++) {
+                var d = dates[i];
+                if (dateDebut && d < dateDebut) continue;
+                if (dateFin && d > dateFin) continue;
+                var livraisonsJour = parDate[d];
+                for (var j = 0; j < livraisonsJour.length; j++) {
+                    var l = livraisonsJour[j];
+                    var pid = l.produit_id;
+                    if (!pid) continue;
+                    stock[pid] = (stock[pid] || 0) + (parseFloat(l.total_a_distribuer) || 0);
+                    infos[pid] = { 
+                        nom: l.produit || pid, 
+                        reference: '',
+                        emplacement_id: l.emplacement_id || null
+                    };
+                }
+            }
+            return { stock: stock, infos: infos };
         }
-    }
-    return { stock: stock, infos: infos };
-}
 
         // ============================================================
         // ALGORITHME DE DISTRIBUTION
@@ -504,9 +762,22 @@
             var groupes = Object.keys(famillesParGroupe).map(Number).sort(function(a, b) { return a - b; });
 
             var stockRestant = {};
+            var margeRestante = {};
             produitsDisponibles.forEach(function(p) {
                 stockRestant[p.id] = p.stock;
+                margeRestante[p.id] = MARGE_MAX_DEPASSEMENT_STOCK;
             });
+
+            function peutServir(produitId, stockActuel, besoin) {
+                if (stockActuel >= besoin) {
+                    return { ok: true, utiliseMarge: 0 };
+                }
+                var manque = besoin - stockActuel;
+                if (manque <= margeRestante[produitId]) {
+                    return { ok: true, utiliseMarge: manque };
+                }
+                return { ok: false, utiliseMarge: 0 };
+            }
 
             var distribution = {};
             groupes.forEach(function(taille) {
@@ -533,9 +804,6 @@
                 produitsParCategorie[cat].push(p);
             });
 
-            // ============================================================
-            // POUR CHAQUE CATÉGORIE
-            // ============================================================
             CATEGORIES.forEach(function(cat) {
                 var produitsCat = produitsParCategorie[cat.key] || [];
                 if (produitsCat.length === 0) return;
@@ -550,103 +818,31 @@
                     };
                 });
 
-                // --- ÉTAPE 1 : Distribution initiale (1 paquet par famille) ---
-                produitsAvecPaquet.forEach(function(pp) {
+                produitsAvecPaquet.forEach(function(pp, produitIndex) {
                     var produit = pp.produit;
                     var paquetSize = pp.paquetSize;
                     var pointsParPaquet = pp.pointsParPaquet;
-                    var totalFamilles = 0;
-                    Object.keys(famillesParGroupe).forEach(function(taille) {
-                        totalFamilles += famillesParGroupe[taille];
+                    var minParPersonne = produit.min_par_personne || false;
+
+                    var offsetProduit = produitIndex % groupes.length;
+                    var ordreProduit = groupes.slice(offsetProduit).concat(groupes.slice(0, offsetProduit));
+
+                    ordreProduit.forEach(function(taille) {
+                        var nbFamilles = famillesParGroupe[taille];
+                        var qtyParFamille = minParPersonne ? (parseInt(taille) * paquetSize) : paquetSize;
+                        var besoinGroupe = qtyParFamille * nbFamilles;
+
+                        var stock = stockRestant[produit.id] || 0;
+                        var check = peutServir(produit.id, stock, besoinGroupe);
+                        if (check.ok) {
+                            distribution[taille][produit.id] += qtyParFamille;
+                            stockRestant[produit.id] -= besoinGroupe;
+                            margeRestante[produit.id] -= check.utiliseMarge;
+                            pointsParGroupe[taille][cat.key] += (qtyParFamille / paquetSize) * pointsParPaquet;
+                        }
                     });
-
-                    var stock = stockRestant[produit.id] || 0;
-                    var minParPersonne = produit.min_par_personne || false;
-                    var besoinTotal = totalFamilles * paquetSize;
-
-                    if (stock >= besoinTotal) {
-                        Object.keys(famillesParGroupe).forEach(function(taille) {
-                            var nbFamilles = famillesParGroupe[taille];
-                            var qtyParFamille = paquetSize;
-
-                            if (minParPersonne) {
-                                qtyParFamille = parseInt(taille) * paquetSize;
-                            }
-
-                            var besoinGroupe = qtyParFamille * nbFamilles;
-
-                            if (stockRestant[produit.id] >= besoinGroupe) {
-                                distribution[taille][produit.id] += qtyParFamille;
-                                stockRestant[produit.id] -= besoinGroupe;
-                                pointsParGroupe[taille][cat.key] += (qtyParFamille / paquetSize) * pointsParPaquet;
-                            }
-                        });
-                    }
                 });
 
-                // --- ÉTAPE 2 : Distribution prioritaire (grandes familles) ---
-                produitsAvecPaquet.forEach(function(pp) {
-                    var produit = pp.produit;
-                    var paquetSize = pp.paquetSize;
-                    var pointsParPaquet = pp.pointsParPaquet;
-                    var stock = stockRestant[produit.id] || 0;
-                    if (stock <= 0) return;
-
-                    var minParPersonne = produit.min_par_personne || false;
-
-                    if (minParPersonne) {
-                        for (var gi = 0; gi < groupesTries.length; gi++) {
-                            var taille = groupesTries[gi];
-                            if (stock <= 0) break;
-
-                            var nbFamilles = famillesParGroupe[taille];
-                            var besoinParFamille = parseInt(taille) * paquetSize;
-                            var besoinTotal = besoinParFamille * nbFamilles;
-
-                            if (stock >= besoinTotal) {
-                                distribution[taille][produit.id] += besoinParFamille;
-                                stock -= besoinTotal;
-                                pointsParGroupe[taille][cat.key] += (besoinParFamille / paquetSize) * pointsParPaquet;
-                            } else {
-                                var famillesServies = Math.floor(stock / besoinParFamille);
-                                if (famillesServies > 0) {
-                                    var totalUtilise = famillesServies * besoinParFamille;
-                                    distribution[taille][produit.id] += besoinParFamille;
-                                    stock -= totalUtilise;
-                                    pointsParGroupe[taille][cat.key] += (besoinParFamille / paquetSize) * pointsParPaquet;
-                                }
-                                break;
-                            }
-                        }
-                    } else {
-                        for (var gi2 = 0; gi2 < groupesTries.length; gi2++) {
-                            var taille2 = groupesTries[gi2];
-                            if (stock <= 0) break;
-
-                            var nbFamilles2 = famillesParGroupe[taille2];
-                            var besoinTotal2 = nbFamilles2 * paquetSize;
-
-                            if (stock >= besoinTotal2) {
-                                distribution[taille2][produit.id] += paquetSize;
-                                stock -= besoinTotal2;
-                                pointsParGroupe[taille2][cat.key] += pointsParPaquet;
-                            } else {
-                                var famillesServies2 = Math.floor(stock / paquetSize);
-                                if (famillesServies2 > 0) {
-                                    var totalUtilise2 = famillesServies2 * paquetSize;
-                                    distribution[taille2][produit.id] += paquetSize;
-                                    stock -= totalUtilise2;
-                                    pointsParGroupe[taille2][cat.key] += pointsParPaquet;
-                                }
-                                break;
-                            }
-                        }
-                    }
-
-                    stockRestant[produit.id] = stock;
-                });
-
-                // --- ÉTAPE 3 : Distribution en boucle (pour les petits points) ---
                 var stockDisponible = true;
                 var maxTours = 100;
                 var tour = 0;
@@ -660,20 +856,23 @@
                     stockDisponible = false;
                     tour++;
 
+                    var offsetTour = (tour - 1) % groupesTries.length;
+                    var ordreDuTour = groupesTries.slice(offsetTour).concat(groupesTries.slice(0, offsetTour));
+
                     produitsAvecPaquet.forEach(function(pp) {
                         var produit = pp.produit;
                         var paquetSize = pp.paquetSize;
                         var pointsParPaquet = pp.pointsParPaquet;
                         var stock = stockRestant[produit.id] || 0;
 
-                        if (stock <= 0) return;
+                        if (stock <= 0 && margeRestante[produit.id] <= 0) return;
 
                         var minParPersonne = produit.min_par_personne || false;
 
-                        for (var gi3 = 0; gi3 < groupesTries.length; gi3++) {
-                            var taille3 = groupesTries[gi3];
+                        for (var gi3 = 0; gi3 < ordreDuTour.length; gi3++) {
+                            var taille3 = ordreDuTour[gi3];
                             if (groupeAtteint[taille3]) continue;
-                            if (stock <= 0) break;
+                            if (stock <= 0 && margeRestante[produit.id] <= 0) break;
 
                             var nbFamilles3 = famillesParGroupe[taille3];
                             var cible = pointsCibles(taille3);
@@ -691,27 +890,16 @@
 
                             var besoinGroupe = qtyParFamille * nbFamilles3;
 
-                            if (stock >= besoinGroupe) {
+                            var check3 = peutServir(produit.id, stock, besoinGroupe);
+                            if (check3.ok) {
                                 distribution[taille3][produit.id] += qtyParFamille;
                                 stock -= besoinGroupe;
+                                margeRestante[produit.id] -= check3.utiliseMarge;
                                 pointsParGroupe[taille3][cat.key] += (qtyParFamille / paquetSize) * pointsParPaquet;
                                 stockDisponible = true;
 
                                 if (pointsParGroupe[taille3][cat.key] >= cible) {
                                     groupeAtteint[taille3] = true;
-                                }
-                            } else {
-                                var famillesServies3 = Math.floor(stock / qtyParFamille);
-                                if (famillesServies3 > 0) {
-                                    var totalUtilise3 = famillesServies3 * qtyParFamille;
-                                    distribution[taille3][produit.id] += qtyParFamille;
-                                    stock -= totalUtilise3;
-                                    pointsParGroupe[taille3][cat.key] += (qtyParFamille / paquetSize) * pointsParPaquet;
-                                    stockDisponible = true;
-
-                                    if (pointsParGroupe[taille3][cat.key] >= cible) {
-                                        groupeAtteint[taille3] = true;
-                                    }
                                 }
                             }
                         }
@@ -727,7 +915,6 @@
                     if (tousAtteints) break;
                 }
 
-                // --- ÉTAPE 4 : Ajustement des dépassements ---
                 var ajustementsEffectues = true;
                 var maxIterations = 100;
                 var iter = 0;
@@ -782,116 +969,97 @@
         }
 
         // ============================================================
-        // IMPRESSION PAR EMPLACEMENT
+        // ENREGISTREMENT AUTOMATIQUE DE LA DISTRIBUTION
         // ============================================================
-        function imprimerEmplacement(empId) {
-            if (!dernierResultat) {
-                alert('Aucun résultat à imprimer. Calculez d\'abord la distribution.');
-                return;
+        async function enregistrerDistributionAuto(resultat) {
+            var campagneId = document.getElementById('campagneSelect').value;
+            if (!campagneId) {
+                return { ok: false, message: 'Aucune campagne sélectionnée' };
             }
 
-            var data = dernierResultat;
+            var dateDebut = document.getElementById('dateDebut').value;
+            var dateFin = document.getElementById('dateFin').value;
 
-            var produitsEmp = data.produitsDisponibles.filter(function(p) {
-                return (p.emplacement_id || 'inconnu') == empId;
-            });
-
-            if (produitsEmp.length === 0) {
-                alert('Aucun produit pour cet emplacement.');
-                return;
+            var totalFamilles = 0;
+            for (var taille in resultat.famillesParGroupe) {
+                totalFamilles += resultat.famillesParGroupe[taille];
             }
 
-            var nomEmp = empId === 'inconnu' ? 'Emplacement non défini' : getEmplacementNom(empId);
+            var data = {
+                campagne_id: parseInt(campagneId),
+                date_distribution: new Date().toISOString().split('T')[0],
+                periode: 'hebdomadaire',
+                livraison_ids: [],
+                besoins: {
+                    familles_par_personne: resultat.famillesParGroupe,
+                    total_familles: totalFamilles,
+                    multiplicateur: 1,
+                    date_debut: dateDebut,
+                    date_fin: dateFin
+                }
+            };
 
-            var html = '<div style="padding:2rem;font-family:Arial,sans-serif;max-width:1200px;margin:0 auto;">';
-            html += `<div style="text-align:center;margin-bottom:2rem;">`;
-            html += `<h1 style="color:#d52b4b;margin:0;">Restos du Cœur</h1>`;
-            html += `<h2 style="margin:0.25rem 0;font-size:1.2rem;">📍 Feuille de préparation - ${nomEmp}</h2>`;
-            html += `<p style="color:#666;font-size:0.85rem;margin:0;">Campagne ${data.campagne ? data.campagne.annee + ' - ' + data.campagne.saison : ''}</p>`;
-            html += `<p style="color:#666;font-size:0.85rem;margin:0;">Date: ${new Date().toLocaleDateString('fr-FR')}</p>`;
-            html += '</div>';
-
-            html += '<table style="width:100%;border-collapse:collapse;font-size:0.9rem;">';
-            html += '<thead>';
-            html += '<tr style="background:#d52b4b;color:white;">';
-            html += '<th style="padding:0.5rem 0.7rem;text-align:left;">Produit</th>';
-            data.groupes.forEach(function(taille) {
-                html += `<th style="padding:0.5rem 0.7rem;text-align:center;">${taille}</th>`;
-            });
-            html += '<th style="padding:0.5rem 0.7rem;text-align:center;">Total</th>';
-            html += '</tr>';
-            html += '</thead>';
-
-            html += '<tbody>';
-            produitsEmp.forEach(function(p) {
-                html += '<tr>';
-                html += `<td style="padding:0.4rem 0.7rem;border-bottom:1px solid #ddd;">${p.nom}`;
-                if (p.min_par_personne) html += ' ⚠️ min 1/pers';
-                html += `</td>`;
-
-                var totalProduit = 0;
-                data.groupes.forEach(function(taille) {
-                    var qty = data.distribution[taille][p.id] || 0;
-                    totalProduit += qty;
-                    html += `<td style="padding:0.4rem 0.7rem;text-align:center;border-bottom:1px solid #ddd;">${qty > 0 ? qty : '—'}</td>`;
+            try {
+                // 1. Créer la distribution
+                var response = await fetch('/api/distributions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        campagne_id: data.campagne_id,
+                        date_distribution: data.date_distribution,
+                        periode: data.periode,
+                        livraison_ids: data.livraison_ids
+                    })
                 });
-                html += `<td style="padding:0.4rem 0.7rem;text-align:center;border-bottom:1px solid #ddd;font-weight:700;">${totalProduit}</td>`;
-                html += '</tr>';
-            });
 
-            html += '<tr style="font-weight:700;background:#f5f5f5;">';
-            html += `<td style="padding:0.4rem 0.7rem;">Total</td>`;
-            data.groupes.forEach(function(taille) {
-                var totalEmp = 0;
-                produitsEmp.forEach(function(p) {
-                    totalEmp += data.distribution[taille][p.id] || 0;
-                });
-                html += `<td style="padding:0.4rem 0.7rem;text-align:center;">${totalEmp}</td>`;
-            });
-            var totalEmpGeneral = 0;
-            produitsEmp.forEach(function(p) {
-                data.groupes.forEach(function(taille) {
-                    totalEmpGeneral += data.distribution[taille][p.id] || 0;
-                });
-            });
-            html += `<td style="padding:0.4rem 0.7rem;text-align:center;">${totalEmpGeneral}</td>`;
-            html += '</tr>';
+                if (!response.ok) {
+                    var error = await response.json();
+                    throw new Error(error.error || 'Erreur lors de la création');
+                }
 
-            html += '</tbody></table>';
-            html += '</div>';
+                var result = await response.json();
+                var distributionId = result.id;
 
-            var win = window.open('', '_blank', 'width=1200,height=800');
-            win.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Feuille de préparation - ${nomEmp}</title>
-                    <style>
-                        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
-                        .no-print { display: none; }
-                        @media print {
-                            .no-print { display: none !important; }
-                            table { page-break-inside: avoid; }
+                // 2. Enregistrer les données de répartition
+                var saveResponse = await fetch('/api/distributions/' + distributionId + '/save-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        besoins: data.besoins,
+                        famillesParPersonne: resultat.famillesParGroupe,
+                        totalFamilles: totalFamilles,
+                        multiplicateur: 1,
+                        ventilation: {
+                            distribution: resultat.distribution,
+                            pointsParGroupe: resultat.pointsParGroupe,
+                            stockRestant: resultat.stockRestant,
+                            groupes: resultat.groupes,
+                            famillesParGroupe: resultat.famillesParGroupe,
+                            produitsDisponibles: resultat.produitsDisponibles
                         }
-                    </style>
-                </head>
-                <body>
-                    ${html}
-                    <div class="no-print" style="text-align:center;padding:1rem;position:fixed;bottom:0;left:0;right:0;background:white;border-top:2px solid #ddd;">
-                        <button onclick="window.print()" style="padding:0.5rem 2rem;background:#d52b4b;color:white;border:none;border-radius:8px;cursor:pointer;font-size:1rem;">🖨️ Imprimer</button>
-                        <button onclick="window.close()" style="padding:0.5rem 2rem;background:#666;color:white;border:none;border-radius:8px;cursor:pointer;font-size:1rem;margin-left:0.5rem;">Fermer</button>
-                    </div>
-                </body>
-                </html>
-            `);
-            win.document.close();
+                    })
+                });
+
+                if (!saveResponse.ok) {
+                    throw new Error('Erreur lors de l\'enregistrement des données');
+                }
+
+                // Recharger l'historique
+                await chargerHistoriqueDistributions();
+
+                console.log('✅ Distribution enregistrée automatiquement (ID: ' + distributionId + ')');
+                return { ok: true };
+
+            } catch (error) {
+                console.error('❌ Erreur enregistrement automatique:', error);
+                return { ok: false, message: error.message };
+            }
         }
 
         // ============================================================
         // AFFICHAGE DES RÉSULTATS
         // ============================================================
-        function afficherResultats(data) {
+        function afficherResultats(data, isArchive) {
             var container = document.getElementById('distribution-content');
             var html = '';
 
@@ -902,12 +1070,14 @@
 
             html += '<div class="distribution-header">';
             html += `<div><span class="date-badge">🚚 Livraison sélectionnée</span>`;
-            html += `<span style="margin-left:1rem;">👨‍👩‍👧‍👦 ${totalFamilles} familles</span></div>`;
+            html += `<span style="margin-left:1rem;">👨‍👩‍👧‍👦 ${totalFamilles} familles</span>`;
+            html += isArchive
+                ? `<span style="margin-left:1rem;" class="badge-save-success" style="background:#17a2b8;">📁 Archive consultée</span>`
+                : `<span style="margin-left:1rem;" class="badge-save-success">✅ Enregistrée automatiquement</span>`;
+            html += '</div>';
             html += '</div>';
 
-            // ============================================================
-            // RÉSUMÉ GLOBAL PAR CATÉGORIE
-            // ============================================================
+            // Résumé global
             html += '<h3>📊 Résumé global par catégorie</h3>';
             html += '<div class="recap-points">';
 
@@ -940,9 +1110,7 @@
 
             html += '</div>';
 
-            // ============================================================
-            // DÉTAIL DES QUANTITÉS PAR CATÉGORIE
-            // ============================================================
+            // Détail par catégorie
             html += '<h3>📦 Détail des quantités distribuées par catégorie</h3>';
 
             var produitsParCategorie = {};
@@ -1006,10 +1174,10 @@
 
                     var restant = data.stockRestant[p.id] || 0;
                     var distribue = stockInitial - restant;
-                    var pct = stockInitial > 0 ? Math.round((distribue / stockInitial) * 100) : 0;
-                    var ratioColor = pct >= 100 ? 'color:#28a745;' : (pct >= 50 ? 'color:#ffc107;' : 'color:#dc3545;');
+                    var pct2 = stockInitial > 0 ? Math.round((distribue / stockInitial) * 100) : 0;
+                    var ratioColor = pct2 >= 100 ? 'color:#28a745;' : (pct2 >= 50 ? 'color:#ffc107;' : 'color:#dc3545;');
 
-                    html += `<td class="total" style="${ratioColor}">${distribue} / ${stockInitial} (${pct}%)</td>`;
+                    html += `<td class="total" style="${ratioColor}">${distribue} / ${stockInitial} (${pct2}%)</td>`;
                     html += '</tr>';
                     totalGeneral += totalProduit;
                 });
@@ -1030,90 +1198,7 @@
                 html += '</div>';
             });
 
-            // ============================================================
-            // FEUILLES PAR EMPLACEMENT
-            // ============================================================
-            html += '<h3>📍 Feuilles de préparation par emplacement</h3>';
-            html += '<div class="emplacements-grid">';
-
-            var produitsParEmplacement = {};
-            data.produitsDisponibles.forEach(function(p) {
-                var empId = p.emplacement_id || 'inconnu';
-                if (!produitsParEmplacement[empId]) produitsParEmplacement[empId] = [];
-                produitsParEmplacement[empId].push(p);
-            });
-
-            Object.keys(produitsParEmplacement).forEach(function(empId) {
-                var produitsEmp = produitsParEmplacement[empId];
-                var nomEmp = empId === 'inconnu' ? '❓ Emplacement non défini' : getEmplacementNom(empId);
-
-                html += `<div class="emplacement-card">`;
-                html += `<h3>📍 ${nomEmp}</h3>`;
-                html += '<div style="overflow-x:auto;">';
-                html += '<table class="repartition-table">';
-
-                html += '<thead><tr>';
-                html += '<th>Produit</th>';
-                data.groupes.forEach(function(taille) {
-                    html += `<th class="qty">${taille}</th>`;
-                });
-                html += '<th class="qty">Total</th>';
-                html += '</tr></thead>';
-
-                html += '<tbody>';
-                produitsEmp.forEach(function(p) {
-                    var pts = p.points_total || 0;
-                    var paquetSize = calculerPaquetRepas(pts);
-
-                    html += '<tr>';
-                    html += `<td>${p.nom}`;
-                    if (p.min_par_personne) html += ` <span class="badge-min">min 1/pers</span>`;
-                    if (paquetSize > 1) html += ` <span class="badge-paquet">${paquetSize} u./repas</span>`;
-                    html += `</td>`;
-
-                    var totalProduit = 0;
-                    data.groupes.forEach(function(taille) {
-                        var qty = data.distribution[taille][p.id] || 0;
-                        totalProduit += qty;
-                        html += `<td class="qty">${qty > 0 ? qty : '—'}</td>`;
-                    });
-
-                    html += `<td class="total">${totalProduit}</td>`;
-                    html += '</tr>';
-                });
-
-                html += `<tr class="total-row">`;
-                html += `<td><strong>Total</strong></td>`;
-                data.groupes.forEach(function(taille) {
-                    var totalEmp = 0;
-                    produitsEmp.forEach(function(p) {
-                        totalEmp += data.distribution[taille][p.id] || 0;
-                    });
-                    html += `<td class="qty"><strong>${totalEmp}</strong></td>`;
-                });
-                var totalEmpGeneral = 0;
-                produitsEmp.forEach(function(p) {
-                    data.groupes.forEach(function(taille) {
-                        totalEmpGeneral += data.distribution[taille][p.id] || 0;
-                    });
-                });
-                html += `<td class="total"><strong>${totalEmpGeneral}</strong></td>`;
-                html += '</tr>';
-
-                html += '</tbody></table>';
-                html += '</div>';
-
-                html += `<button class="btn-imprimer" onclick="imprimerEmplacement('${empId}')">`;
-                html += `<i class="fas fa-print"></i> Imprimer`;
-                html += '</button>';
-                html += '</div>';
-            });
-
-            html += '</div>';
-
-            // ============================================================
-            // STOCK RESTANT
-            // ============================================================
+            // Stock restant
             html += '<h3>📦 Stock restant</h3>';
             html += '<div class="stock-restant-grid">';
 
@@ -1161,6 +1246,7 @@
 
             var progressModal = document.getElementById('progressModal');
             progressModal.style.display = 'block';
+            document.getElementById('progressStatus').textContent = 'Calcul des besoins...';
 
             try {
                 if (produits.length === 0) {
@@ -1195,15 +1281,15 @@
                         var cats = categoriesDuProduit(p);
                         if (cats.length > 0) {
                             produitsDisponibles.push({
-    id: p.id,
-    nom: p.nom,
-    points_total: parseFloat(p.points_total) || 0,
-    portions_par_unite: parseInt(p.portions_par_unite) || 1,
-    min_par_personne: !!p.min_par_personne,
-    stock: stock,
-    emplacement_id: stockInfo.infos[p.id] ? stockInfo.infos[p.id].emplacement_id : null, // Récupéré depuis la livraison
-    categorie: cats[0].categorie
-});
+                                id: p.id,
+                                nom: p.nom,
+                                points_total: parseFloat(p.points_total) || 0,
+                                portions_par_unite: parseInt(p.portions_par_unite) || 1,
+                                min_par_personne: !!p.min_par_personne,
+                                stock: stock,
+                                emplacement_id: stockInfo.infos[p.id] ? stockInfo.infos[p.id].emplacement_id : null,
+                                categorie: cats[0].categorie
+                            });
                         }
                     }
                 }
@@ -1222,18 +1308,32 @@
                     return;
                 }
 
+                document.getElementById('progressStatus').textContent = 'Distribution en cours...';
+
                 var resultat = distribuerProduits(famillesParGroupe, produitsDisponibles);
                 resultat.campagne = campagnes.find(function(c) { return c.id == campagneId; });
                 resultat.dateDebut = dateDebut;
                 resultat.dateFin = dateFin;
 
                 dernierResultat = resultat;
+
+                // ===== ENREGISTREMENT AUTOMATIQUE =====
+                document.getElementById('progressStatus').textContent = 'Enregistrement automatique...';
+                var saveResult = await enregistrerDistributionAuto(resultat);
+
+                if (saveResult.ok) {
+                    showNotification('✅ Distribution calculée et enregistrée automatiquement !', 'success');
+                } else {
+                    showNotification('⚠️ Distribution calculée mais échec de l\'enregistrement : ' + (saveResult.message || 'erreur inconnue'), 'error');
+                }
+
                 afficherResultats(resultat);
 
             } catch (error) {
                 console.error('Erreur:', error);
                 document.getElementById('distribution-content').innerHTML =
                     `<div class="empty-state">❌ Erreur: ${error.message || 'erreur inconnue'}</div>`;
+                showNotification('❌ Erreur: ' + error.message, 'error');
             } finally {
                 progressModal.style.display = 'none';
             }
@@ -1242,9 +1342,13 @@
         // ============================================================
         // INITIALISATION
         // ============================================================
-        loadCampagnes();
-        loadProduitsEtEmplacements();
-        loadDatesLivraisons();
+        async function initPage() {
+            await loadCampagnes();
+            loadProduitsEtEmplacements();
+            loadDatesLivraisons();
+            chargerHistoriqueDistributions();
+        }
+        initPage();
     </script>
 </body>
 </html>
